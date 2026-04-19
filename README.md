@@ -262,25 +262,6 @@ Reply to a message publicly.
 
 ---
 
-## 📅 Progress Log
-
-> Updated as features are completed.
-
-| Date | What was done |
-|---|---|
-| — | Project scaffolding & folder structure |
-| — | MongoDB connection & app setup |
-| — | User model & auth module (register, login, OTP) |
-| — | JWT middleware & Joi validation layer |
-| — | Helmet, CORS, rate limiting configuration |
-| — | Multer file upload + crypto-js encryption |
-| ⬜ | Message module — send anonymous message |
-| ⬜ | Message module — inbox CRUD |
-| ⬜ | User public profile route |
-| ⬜ | Pagination on inbox |
-
----
-
 ## 👨‍💻 Author
 
 **Ahmed Essam** — Node.js Backend Engineer  
