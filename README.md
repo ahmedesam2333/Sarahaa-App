@@ -22,9 +22,11 @@
 
 - [Overview](#-overview)
 - [Features](#-features)
+- [Project Structure](#-project-structure)
 - [Tech Stack & Packages](#-tech-stack--packages)
 - [API Documentation](#-api-documentation)
-  
+- [Author](#-author)
+
 ---
 
 ## 🧠 Overview
@@ -41,23 +43,66 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 ## ✅ Features
 
-- [x] User registration & login with JWT authentication
-- [x] OTP email verification via Nodemailer
-- [x] Bcrypt password hashing
-- [x] Encrypted sensitive fields (phone numbers) using crypto-js
-- [x] Helmet security headers
-- [x] Rate limiting per IP
-- [x] CORS configuration
-- [x] Centralized async error handling middleware
-- [x] Uniform success/error API response structure
-- [x] Joi request validation on all routes
-- [x] Multer file upload handling
+### ✔️ Completed
+
+- [x] Folder structure & project setup
+- [x] MongoDB database connection
+- [x] User model (schema design)
+- [x] Sign Up & Login endpoints
+- [x] Async error handler utility (`asyncHandler`)
+- [x] Global error handling middleware
+- [x] Uniform success/error API response structure (`response.js`)
+
+### 🔜 In Progress / Upcoming
+
+- [ ] Hashing — what it is & implementation (`bcrypt`)
+- [ ] Encryption — Symmetric vs Asymmetric (`crypto-js`)
+- [ ] Implement encryption on sensitive fields (phone numbers)
+- [ ] Tokens — what they are & why we need them
+- [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
+- [ ] Verify token middleware
+- [ ] Authentication middleware (protect routes)
+- [ ] Environment variables setup (`dotenv`)
+- [ ] OTP email verification (`nodemailer`)
+- [ ] Rate limiting per IP (`express-rate-limit`)
+- [ ] Helmet security headers
+- [ ] CORS configuration
+- [ ] Joi request validation on all routes
+- [ ] Multer file upload handling
 - [ ] Anonymous message sending (no auth required)
 - [ ] Message inbox — view, delete, reply
 - [ ] Public profile page per user
 - [ ] Block/report a message
 - [ ] Pagination for message inbox
 - [ ] Admin dashboard (future)
+
+---
+
+## 🗂️ Project Structure
+
+```
+SARAHAA-APP/
+├── src/
+│   ├── auth/
+│   │   ├── auth.controller.js
+│   │   └── auth.routes.js
+│   ├── DB/
+│   │   ├── models/
+│   │   │   └── user.model.js
+│   │   └── connection.js
+│   ├── user/
+│   │   └── ⬜ add user files here as you build
+│   └── utils/
+│       ├── response.js        (asyncHandler + success/error helpers)
+│       ├── app.controller.js  (main app setup / route mounting)
+│       └── index.js           (entry point)
+├── .gitignore
+├── package.json
+├── package-lock.json
+└── README.md
+```
+
+> ⬜ *Add new modules/folders here as the project grows (e.g. `message/`, `middleware/`, `config/`)*
 
 ---
 
@@ -92,154 +137,227 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 ---
 
-### 🔑 Auth Routes — `/auth`
+## 📖 API Documentation
 
-#### `POST /auth/register`
-Register a new user.
+> Base URL: `http://localhost:5000`
+
+---
+
+## 🔑 Auth — `/auth`
+
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/signup</strong> — Register a new user</summary>
+
+<br/>
 
 **Request Body:**
 ```json
 {
-  "username": "ahmed",
-  "email": "ahmed@example.com",
-  "password": "StrongPass123!",
-  "phone": "01011847804"
+  "fullName": "Ahmed Essam",
+  "email": "a1@example.com",
+  "password": "1234",
+  "gender": "male",
+  "phone": "01234567891"
 }
 ```
 
-**Response `201`:**
+**Response `201` — Success:**
 ```json
 {
-  "success": true,
-  "message": "Registration successful. OTP sent to email.",
-  "data": {
-    "userId": "abc123"
+  "message": "User created successfully",
+  "user": {
+    "_id": "...",
+    "fullName": "Ahmed Essam",
+    "email": "a1@example.com",
+    "gender": "male",
+    "phone": "01234567891"
   }
 }
 ```
 
+**Response `409` — Email already exists:**
+```json
+{
+  "message": "Email already exists"
+}
+```
+
+> ⬜ *Add more error cases here as you implement validation (e.g. missing fields, invalid email format)*
+
+</details>
+
 ---
 
-#### `POST /auth/verify-otp`
-Verify email with OTP code.
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/login</strong> — Login with credentials</summary>
+
+<br/>
 
 **Request Body:**
 ```json
 {
-  "email": "ahmed@example.com",
-  "otp": "482910"
+  "email": "a1@example.com",
+  "password": "1234"
 }
 ```
 
-**Response `200`:**
+**Response `200` — Success:**
 ```json
 {
-  "success": true,
-  "message": "Email verified successfully.",
-  "data": {
-    "token": "<JWT>"
+  "message": "User Logged in successfully",
+  "user": {
+    "_id": "...",
+    "fullName": "Ahmed Essam",
+    "email": "a1@example.com"
   }
 }
 ```
 
----
-
-#### `POST /auth/login`
-Login with credentials.
-
-**Request Body:**
+**Response `404` — User not found:**
 ```json
 {
-  "email": "ahmed@example.com",
-  "password": "StrongPass123!"
+  "message": "User not found"
 }
 ```
 
-**Response `200`:**
-```json
-{
-  "success": true,
-  "message": "Login successful.",
-  "data": {
-    "token": "<JWT>",
-    "user": { "id": "...", "username": "ahmed" }
-  }
-}
-```
+> ⬜ *Add token to response once JWT is implemented*  
+> ⬜ *Add more error cases (wrong password, unverified email, etc.)*
+
+</details>
 
 ---
 
-#### `POST /auth/resend-otp`
-Resend OTP to email.
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/verify-otp</strong> — Verify email with OTP &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
-> ⬜ *Add details when implemented*
+<br/>
 
----
+> ⬜ *Add request body, success response, and error cases when implemented*
 
-#### `POST /auth/forgot-password`
-Send password reset email.
-
-> ⬜ *Add details when implemented*
+</details>
 
 ---
 
-#### `POST /auth/reset-password`
-Reset password using token.
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/resend-otp</strong> — Resend OTP to email &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
 
 > ⬜ *Add details when implemented*
+
+</details>
 
 ---
 
-### 👤 User Routes — `/users` &nbsp; 🔒 *Protected*
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/forgot-password</strong> — Send password reset email &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
-#### `GET /users/me`
-Get current authenticated user profile.
+<br/>
 
 > ⬜ *Add details when implemented*
+
+</details>
 
 ---
 
-#### `PUT /users/me`
-Update profile info (username, bio, avatar).
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/reset-password</strong> — Reset password using token &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
 
 > ⬜ *Add details when implemented*
+
+</details>
 
 ---
 
-#### `GET /users/:username`
-Get a user's public profile by username (used to show the anonymous link page).
+## 👤 User — `/users` &nbsp; 🔒 *Protected*
 
-> ⬜ *Add details when implemented*
+<details>
+<summary><code>GET</code> &nbsp; <strong>/users/me</strong> — Get current user profile &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
----
+<br/>
 
-### 💬 Message Routes — `/messages`
+> ⬜ *Add request, success response, and error cases when implemented*
 
-#### `POST /messages/:username` &nbsp; 🔓 *Public*
-Send an anonymous message to a user.
-
-> ⬜ *Add details when implemented*
+</details>
 
 ---
 
-#### `GET /messages/inbox` &nbsp; 🔒 *Protected*
-Get all received messages for the logged-in user.
+<details>
+<summary><code>PUT</code> &nbsp; <strong>/users/me</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
 
 > ⬜ *Add details when implemented*
+
+</details>
 
 ---
 
-#### `DELETE /messages/:id` &nbsp; 🔒 *Protected*
-Delete a message from inbox.
+<details>
+<summary><code>GET</code> &nbsp; <strong>/users/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
+<br/>
+
+> ⬜ *Used to display the user's anonymous link page*  
 > ⬜ *Add details when implemented*
+
+</details>
 
 ---
 
-#### `POST /messages/:id/reply` &nbsp; 🔒 *Protected*
-Reply to a message publicly.
+> ⬜ *Add more user routes here as you build (e.g. change password, delete account)*
+
+---
+
+## 💬 Messages — `/messages`
+
+<details>
+<summary><code>POST</code> &nbsp; <strong>/messages/:username</strong> — Send anonymous message &nbsp; 🔓 Public &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
 
 > ⬜ *Add details when implemented*
+
+</details>
+
+---
+
+<details>
+<summary><code>GET</code> &nbsp; <strong>/messages/inbox</strong> — Get received messages &nbsp; 🔒 Protected &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
+
+> ⬜ *Add details when implemented*
+
+</details>
+
+---
+
+<details>
+<summary><code>DELETE</code> &nbsp; <strong>/messages/:id</strong> — Delete a message &nbsp; 🔒 Protected &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
+
+> ⬜ *Add details when implemented*
+
+</details>
+
+---
+
+<details>
+<summary><code>POST</code> &nbsp; <strong>/messages/:id/reply</strong> — Reply to a message &nbsp; 🔒 Protected &nbsp; ⬜ <em>Not yet implemented</em></summary>
+
+<br/>
+
+> ⬜ *Add details when implemented*
+
+</details>
+
+---
+
+> ⬜ *Add more message routes here (e.g. block sender, report message, pagination)*
 
 ---
 
