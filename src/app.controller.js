@@ -1,11 +1,12 @@
 import express from "express";
+import dotenv from "dotenv";
 import connectDb from "./DB/connection.db.js";
 import authRoutes from "./auth/auth.route.js";
 import { globalErrorHandling } from "./utils/response.js";
 const bootsrtap = async () => {
   const app = express();
   const port = 5000;
-
+  dotenv.config();
   //DB
   await connectDb();
 
