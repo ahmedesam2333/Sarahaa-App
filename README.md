@@ -277,7 +277,7 @@ SARAHAA-APP/
 
 **Ahmed Essam** — Node.js Backend Engineer  
 📩 ahmedezsam@gmail.com  
-🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221) · [GitHub](https://github.com/ahmedezsam2333)
+🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221) ·
 
 ---
 
