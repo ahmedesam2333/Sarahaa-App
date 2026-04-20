@@ -23,7 +23,6 @@
 - [Overview](#-overview)
 - [Features](#-features)
 - [Project Structure](#-project-structure)
-- [Tech Stack & Packages](#-tech-stack--packages)
 - [API Documentation](#-api-documentation)
 - [Author](#-author)
 
@@ -93,47 +92,14 @@ SARAHAA-APP/
 │   ├── user/
 │   │   └── ⬜ add user files here as you build
 │   └── utils/
-│       ├── response.js        (asyncHandler + success/error helpers)
-│       ├── app.controller.js  (main app setup / route mounting)
-│       └── index.js           (entry point)
+│   ├    ├── response.js        (asyncHandler + success/error helpers)
+│   ├── app.controller.js  (main app setup / route mounting)
+│   └── index.js           (entry point)
 ├── .gitignore
 ├── package.json
 ├── package-lock.json
 └── README.md
 ```
-
-> ⬜ *Add new modules/folders here as the project grows (e.g. `message/`, `middleware/`, `config/`)*
-
----
-
-## 🛠️ Tech Stack & Packages
-
-### Runtime & Framework
-`node` · `express`
-
-### Database
-`mongodb` · `mongoose`
-
-### Authentication & Security
-`jsonwebtoken` · `bcrypt` · `helmet` · `express-rate-limit` · `cors` · `crypto-js`
-
-### Validation & Files
-`joi` · `multer`
-
-### Email
-`nodemailer`
-
-### Config & Utilities
-`dotenv` · `morgan` · `http-status-codes`
-
-### Dev Dependencies
-`nodemon`
-
-### Deployment
-> ⬜ *Add when deployed (e.g. Railway, Render, VPS, Docker...)*
-
-### Additional Packages & Third-party
-> ⬜ *Add any new packages here as the project grows*
 
 ---
 
@@ -308,56 +274,6 @@ SARAHAA-APP/
 ---
 
 > ⬜ *Add more user routes here as you build (e.g. change password, delete account)*
-
----
-
-## 💬 Messages — `/messages`
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/messages/:username</strong> — Send anonymous message &nbsp; 🔓 Public &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>GET</code> &nbsp; <strong>/messages/inbox</strong> — Get received messages &nbsp; 🔒 Protected &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>DELETE</code> &nbsp; <strong>/messages/:id</strong> — Delete a message &nbsp; 🔒 Protected &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/messages/:id/reply</strong> — Reply to a message &nbsp; 🔒 Protected &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-> ⬜ *Add more message routes here (e.g. block sender, report message, pagination)*
 
 ---
 
