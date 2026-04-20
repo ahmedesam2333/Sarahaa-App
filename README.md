@@ -51,6 +51,7 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 - [x] Async error handler utility (`asyncHandler`)
 - [x] Global error handling middleware
 - [x] Uniform success/error API response structure (`response.js`)
+- [x] Environment variables setup (`dotenv`)
 
 ### 🔜 In Progress / Upcoming
 
@@ -61,7 +62,6 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 - [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
 - [ ] Verify token middleware
 - [ ] Authentication middleware (protect routes)
-- [ ] Environment variables setup (`dotenv`)
 - [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
@@ -92,7 +92,7 @@ SARAHAA-APP/
 │   ├── user/
 │   │   └── ⬜ add user files here as you build
 │   └── utils/
-│   ├    ├── response.js        (asyncHandler + success/error helpers)
+│   │   ├── response.js        (asyncHandler + success/error helpers + Global Error Handling)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -182,12 +182,9 @@ SARAHAA-APP/
 **Response `404` — User not found:**
 ```json
 {
-  "message": "User not found"
+  "message": "Invalid Email or Password"
 }
 ```
-
-> ⬜ *Add token to response once JWT is implemented*  
-> ⬜ *Add more error cases (wrong password, unverified email, etc.)*
 
 </details>
 
