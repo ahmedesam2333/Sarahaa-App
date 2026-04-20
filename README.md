@@ -179,7 +179,7 @@ SARAHAA-APP/
 }
 ```
 
-**Response `404` — User not found:**
+**Response `404` — Invalid Email or Password:**
 ```json
 {
   "message": "Invalid Email or Password"
