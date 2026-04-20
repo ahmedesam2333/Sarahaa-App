@@ -273,10 +273,6 @@ SARAHAA-APP/
 
 ---
 
-> ⬜ *Add more user routes here as you build (e.g. change password, delete account)*
-
----
-
 ## 👨‍💻 Author
 
 **Ahmed Essam** — Node.js Backend Engineer  
