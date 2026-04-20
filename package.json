@@ -1,0 +1,28 @@
+{
+  "name": "sarahaa-app",
+  "version": "1.0.0",
+  "description": "Backend Sarahaa App",
+  "keywords": [
+    "Expressjs",
+    "nodejs"
+  ],
+  "homepage": "https://github.com/ahmedesam2333/Sarahaa-App#readme",
+  "bugs": {
+    "url": "https://github.com/ahmedesam2333/Sarahaa-App/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmedesam2333/Sarahaa-App.git"
+  },
+  "license": "ISC",
+  "author": "Ahmed Essam",
+  "type": "module",
+  "main": "./src/index.js",
+  "scripts": {
+    "start:dev": "node  --watch ./src/index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "mongoose": "^9.4.1"
+  }
+}
