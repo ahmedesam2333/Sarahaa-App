@@ -179,6 +179,8 @@ SARAHAA-APP/
 │   │   └── ⬜ add user files here as you build
 │   └── utils/
 │   │   ├── response.js        (asyncHandler + success/error helpers + Global Error Handling)
+│   │   └── security/
+│   │       └── hash.security.js   (bcrypt generateHash + compareHash)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
