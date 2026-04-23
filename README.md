@@ -51,17 +51,102 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 - [x] Async error handler utility (`asyncHandler`)
 - [x] Global error handling middleware
 - [x] Uniform success/error API response structure (`response.js`)
+- [x] Environment variables setup (`dotenv`)
+
+<details>
+<summary><strong>🛠️ asyncHandler + successResponse + globalErrorHandling</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+export const asyncHandler = (fn) => {
+  return async (req, res, next) => {
+    await fn(req, res, next).catch((error) => {
+      error.cause = 500;
+      return next(error);
+    });
+  };
+};
+
+export const successResponse = ({
+  res,
+  message = "Done",
+  status = 200,
+  data,
+}) => {
+  return res.status(status).json({ message, data });
+};
+
+export const globalErrorHandling = (error, req, res, next) => {
+  return res
+    .status(error.cause || 400)
+    .json({ err_message: error.message, stack: error.stack });
+};
+```
+
+</details>
+
+- [x] DB Service layer — generalized ODM-agnostic data access methods
+
+<details>
+<summary><strong>🗄️ DB Service</strong> — <em>Click to see example</em></summary>
+
+<br/>
+
+```javascript
+export const findOne = async ({
+  model,
+  filter = {},
+  projection = {},
+  populate = [],
+} = {}) => {
+  return await model.findOne(filter, projection).populate(populate);
+};
+
+export const create = async ({
+  model,
+  data = [{}],
+  options = { validateBeforeSave: true },
+} = {}) => {
+  return await model.create(data, options);
+};
+```
+
+</details>
+
+- [x] Hashing — `bcrypt` implementation for passwords (`src/utils/security/hash.security.js`)
+
+<details>
+<summary><strong>🔒 Hashing — bcrypt</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+import bcrypt from "bcryptjs";
+
+export const generateHash = async ({ plainText = "", salt = 12 }) => {
+  const hash = bcrypt.hashSync(plainText, parseInt(salt));
+  return hash;
+};
+
+export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
+  const match = bcrypt.compareSync(plainText, hashedPassword);
+  return match;
+};
+```
+
+</details>
+
+---
 
 ### 🔜 In Progress / Upcoming
 
-- [ ] Hashing — what it is & implementation (`bcrypt`)
 - [ ] Encryption — Symmetric vs Asymmetric (`crypto-js`)
 - [ ] Implement encryption on sensitive fields (phone numbers)
 - [ ] Tokens — what they are & why we need them
 - [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
 - [ ] Verify token middleware
 - [ ] Authentication middleware (protect routes)
-- [ ] Environment variables setup (`dotenv`)
 - [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
@@ -88,11 +173,14 @@ SARAHAA-APP/
 │   ├── DB/
 │   │   ├── models/
 │   │   │   └── user.model.js
+│   │   ├── db.service.js      (generalized ODM-agnostic methods)
 │   │   └── connection.js
 │   ├── user/
 │   │   └── ⬜ add user files here as you build
 │   └── utils/
-│   ├    ├── response.js        (asyncHandler + success/error helpers)
+│   │   ├── response.js        (asyncHandler + success/error helpers + Global Error Handling)
+│   │   └── security/
+│   │       └── hash.security.js   (bcrypt generateHash + compareHash)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -179,15 +267,12 @@ SARAHAA-APP/
 }
 ```
 
-**Response `404` — User not found:**
+**Response `404` — Invalid Email or Password:**
 ```json
 {
-  "message": "User not found"
+  "message": "Invalid Email or Password"
 }
 ```
-
-> ⬜ *Add token to response once JWT is implemented*  
-> ⬜ *Add more error cases (wrong password, unverified email, etc.)*
 
 </details>
 
