@@ -114,11 +114,31 @@ export const create = async ({
 
 </details>
 
+- [x] Hashing — implementation (`bcrypt`)
+      
+<details>
+<summary><strong> Hashing - </strong> — <em>Click to see example</em></summary>
+
+<br/>
+
+```javascript
+import bcrypt from "bcryptjs";
+export const generateHash = async ({ plainText = "", salt = 12 }) => {
+  const hash = bcrypt.hashSync(plainText, parseInt(salt));
+  return hash;
+};
+export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
+  const match = bcrypt.compareSync(plainText, hashedPassword);
+  return match;
+};
+```
+
+</details>
 ---
 
 ### 🔜 In Progress / Upcoming
 
-- [ ] Hashing — implementation (`bcrypt`)
+
 - [ ] Implement encryption on sensitive fields (phone numbers)-(`crypto-js`)
 - [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
 - [ ] Authentication middleware (protect routes)
