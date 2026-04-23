@@ -47,7 +47,7 @@ userSchema
     this.set({ firstName, lastName });
   })
   .get(function () {
-    return this.firstName + " " + this.lastName;
+    return `${this.firstName} ${this.lastName}`;
   });
 const userModel = mongoose.models.User || mongoose.model("User", userSchema);
 export default userModel;

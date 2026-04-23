@@ -1,25 +1,56 @@
 import userModel from "../DB/models/user.model.js";
-import { asyncHandler } from "../utils/response.js";
+import * as DBService from "../DB/db.service.js";
+import { asyncHandler, successResponse } from "../utils/response.js";
+import { generateHash, compareHash } from "../utils/security/hash.security.js";
+
+//Register Api
 export const signup = asyncHandler(async (req, res, next) => {
   const { fullName, email, password, gender, phone } = req.body;
-  if (await userModel.findOne({ email })) {
+  if (await DBService.findOne({ model: userModel, filter: { email } })) {
     return next(new Error("Email already exists", { cause: 409 }));
   }
-  const user = await userModel.create({
-    fullName,
-    email,
-    password,
-    gender,
-    phone,
+  const hashedPassword = await generateHash({ plainText: password });
+  const user = await DBService.create({
+    model: userModel,
+    data: [
+      {
+        fullName,
+        email,
+        password: hashedPassword,
+        gender,
+        phone,
+      },
+    ],
   });
-  return res.status(201).json({ message: "User created successfully", user });
+  return successResponse({
+    res,
+    message: "User created successfully",
+    status: 201,
+    data: user,
+  });
 });
 
+//Login Api
 export const login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-  const user = await userModel.findOne({ email, password });
+  const user = await DBService.findOne({
+    model: userModel,
+    filter: { email },
+  });
   if (!user) {
     return next(new Error("Invalid email or password", { cause: 404 }));
   }
-  return res.status(200).json({ message: "User Logged in successfully", user });
+  const match = await compareHash({
+    plainText: password,
+    hashedPassword: user.password,
+  });
+  if (!match) {
+    return next(new Error("Invalid email or password", { cause: 404 }));
+  }
+  return successResponse({
+    res,
+    status: 200,
+    message: "User Logged in successfully",
+    data: user,
+  });
 });
