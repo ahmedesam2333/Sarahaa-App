@@ -53,6 +53,69 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 - [x] Uniform success/error API response structure (`response.js`)
 - [x] Environment variables setup (`dotenv`)
 
+<details>
+<summary><strong>🛠️ asyncHandler + successResponse + globalErrorHandling</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+export const asyncHandler = (fn) => {
+  return async (req, res, next) => {
+    await fn(req, res, next).catch((error) => {
+      error.cause = 500;
+      return next(error);
+    });
+  };
+};
+
+export const successResponse = ({
+  res,
+  message = "Done",
+  status = 200,
+  data,
+}) => {
+  return res.status(status).json({ message, data });
+};
+
+export const globalErrorHandling = (error, req, res, next) => {
+  return res
+    .status(error.cause || 400)
+    .json({ err_message: error.message, stack: error.stack });
+};
+```
+
+</details>
+
+- [x] DB Service layer — generalized ODM-agnostic data access methods
+
+<details>
+<summary><strong>🗄️ DB Service</strong> — <em>Click to see example</em></summary>
+
+<br/>
+
+```javascript
+export const findOne = async ({
+  model,
+  filter = {},
+  projection = {},
+  populate = [],
+} = {}) => {
+  return await model.findOne(filter, projection).populate(populate);
+};
+
+export const create = async ({
+  model,
+  data = [{}],
+  options = { validateBeforeSave: true },
+} = {}) => {
+  return await model.create(data, options);
+};
+```
+
+</details>
+
+---
+
 ### 🔜 In Progress / Upcoming
 
 - [ ] Hashing — what it is & implementation (`bcrypt`)
@@ -88,6 +151,7 @@ SARAHAA-APP/
 │   ├── DB/
 │   │   ├── models/
 │   │   │   └── user.model.js
+│   │   ├── db.service.js      (generalized ODM-agnostic methods)
 │   │   └── connection.js
 │   ├── user/
 │   │   └── ⬜ add user files here as you build
