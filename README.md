@@ -114,19 +114,21 @@ export const create = async ({
 
 </details>
 
-- [x] Hashing — implementation (`bcrypt`)
-      
+- [x] Hashing — `bcrypt` implementation for passwords (`src/utils/security/hash.security.js`)
+
 <details>
-<summary><strong> Hashing - </strong> — <em>Click to see example</em></summary>
+<summary><strong>🔒 Hashing — bcrypt</strong> — <em>Click to see implementation</em></summary>
 
 <br/>
 
 ```javascript
 import bcrypt from "bcryptjs";
+
 export const generateHash = async ({ plainText = "", salt = 12 }) => {
   const hash = bcrypt.hashSync(plainText, parseInt(salt));
   return hash;
 };
+
 export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
   const match = bcrypt.compareSync(plainText, hashedPassword);
   return match;
@@ -134,13 +136,16 @@ export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
 ```
 
 </details>
+
 ---
 
 ### 🔜 In Progress / Upcoming
 
-
-- [ ] Implement encryption on sensitive fields (phone numbers)-(`crypto-js`)
+- [ ] Encryption — Symmetric vs Asymmetric (`crypto-js`)
+- [ ] Implement encryption on sensitive fields (phone numbers)
+- [ ] Tokens — what they are & why we need them
 - [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
+- [ ] Verify token middleware
 - [ ] Authentication middleware (protect routes)
 - [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
@@ -153,6 +158,7 @@ export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
 - [ ] Public profile page per user
 - [ ] Block/report a message
 - [ ] Pagination for message inbox
+- [ ] Admin dashboard (future)
 
 ---
 
