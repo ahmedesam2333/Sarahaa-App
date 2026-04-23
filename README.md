@@ -118,12 +118,9 @@ export const create = async ({
 
 ### 🔜 In Progress / Upcoming
 
-- [ ] Hashing — what it is & implementation (`bcrypt`)
-- [ ] Encryption — Symmetric vs Asymmetric (`crypto-js`)
-- [ ] Implement encryption on sensitive fields (phone numbers)
-- [ ] Tokens — what they are & why we need them
+- [ ] Hashing — implementation (`bcrypt`)
+- [ ] Implement encryption on sensitive fields (phone numbers)-(`crypto-js`)
 - [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
-- [ ] Verify token middleware
 - [ ] Authentication middleware (protect routes)
 - [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
@@ -136,7 +133,6 @@ export const create = async ({
 - [ ] Public profile page per user
 - [ ] Block/report a message
 - [ ] Pagination for message inbox
-- [ ] Admin dashboard (future)
 
 ---
 
