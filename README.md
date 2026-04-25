@@ -119,6 +119,14 @@ export const create = async ({
 } = {}) => {
   return await model.create(data, options);
 };
+
+export const findByIdAndUpdate = async ({
+  model,
+  id,
+  updatedData = {},
+} = {}) => {
+  return await model.findByIdAndUpdate(id, updatedData, { after: true });
+};
 ```
 
 </details>
@@ -175,14 +183,77 @@ export const genDecrypt = async ({
 
 </details>
 
+- [x] JWT — Access & Refresh token generation + verification (`src/utils/security/token.security.js`)
+
+<details>
+<summary><strong>🪙 JWT Tokens</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+import jwt from "jsonwebtoken";
+
+export const genAccessToken = async ({
+  payload = {},
+  signature = process.env.JWT_ACCESS_KEY,
+  options = { expiresIn: "15m" },
+} = {}) => {
+  return jwt.sign(payload, signature, options);
+};
+
+export const genRefreshToken = async ({
+  payload = {},
+  signature = process.env.JWT_REFRESH_KEY,
+  options = { expiresIn: "1y" },
+} = {}) => {
+  return jwt.sign(payload, signature, options);
+};
+
+export const verifyToken = async ({
+  token = "",
+  signature = process.env.JWT_ACCESS_KEY,
+} = {}) => {
+  return jwt.verify(token, signature);
+};
+```
+
+</details>
+
+- [x] Authentication middleware — verifies token & attaches user to `req.user` (`src/middleware/authentication.middleware.js`)
+
+<details>
+<summary><strong>🛡️ Authentication Middleware</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+import { asyncHandler } from "../utils/response.js";
+import { verifyToken } from "../utils/security/token.security.js";
+import userModel from "../DB/models/user.model.js";
+import * as DBService from "../DB/db.service.js";
+
+export const authentication = () => {
+  return asyncHandler(async (req, res, next) => {
+    const { authorization } = req.headers;
+    const decoded = await verifyToken({ token: authorization });
+    if (!decoded?._id) return next(new Error("Invalid-Token", { cause: 400 }));
+    const user = await DBService.findById({
+      model: userModel,
+      id: decoded._id,
+    });
+    if (!user) return next(new Error("User Not Found", { cause: 404 }));
+    req.user = user;
+    return next();
+  });
+};
+```
+
+</details>
+
 ---
 
 ### 🔜 In Progress / Upcoming
 
-- [ ] Tokens — what they are & why we need them
-- [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
-- [ ] Verify token middleware
-- [ ] Authentication middleware (protect routes)
 - [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
@@ -208,17 +279,20 @@ SARAHAA-APP/
 │   │   └── auth.routes.js
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js
-│   │   ├── db.service.js      (generalized ODM-agnostic methods)
+│   │   │   └── user.model.js          (includes refresh_token field)
+│   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
+│   ├── middleware/
+│   │   └── authentication.middleware.js
 │   ├── user/
 │   │   ├── user.controller.js
 │   │   └── user.routes.js
 │   └── utils/
-│   │   ├── response.js        (asyncHandler + success/error helpers + Global Error Handling)
+│   │   ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
 │   │   └── security/
 │   │       ├── hash.security.js       (bcrypt generateHash + compareHash)
-│   │       └── encrypt.security.js    (AES genEncrypt + genDecrypt)
+│   │       ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
+│   │       └── token.security.js      (JWT genAccessToken + genRefreshToken + verifyToken)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -257,24 +331,47 @@ SARAHAA-APP/
 ```json
 {
   "message": "User created successfully",
-  "user": {
-    "_id": "...",
-    "fullName": "Ahmed Essam",
-    "email": "a1@example.com",
-    "gender": "male",
-    "phone": "01234567891"
+  "data": {
+    "access_token": "<jwt_access_token>",
+    "user": {
+      "_id": "...",
+      "fullName": "Ahmed Essam",
+      "email": "a1@example.com",
+      "gender": "male",
+      "phone": "<encrypted>",
+      "refresh_token": "<jwt_refresh_token>"
+    }
   }
 }
 ```
 
 **Response `409` — Email already exists:**
 ```json
-{
-  "message": "Email already exists"
-}
+{ "err_message": "Email already exists" }
 ```
 
-> ⬜ *Add more error cases here as you implement validation (e.g. missing fields, invalid email format)*
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const signup = asyncHandler(async (req, res, next) => {
+  const { fullName, email, password, gender, phone } = req.body;
+  if (await DBService.findOne({ model: userModel, filter: { email } })) {
+    return next(new Error("Email already exists", { cause: 409 }));
+  }
+  const hashedPassword = await generateHash({ plainText: password });
+  const encPhone = await genEncrypt({ plainText: phone });
+  const refresh_token = await genRefreshToken({ payload: { email } });
+  const user = await DBService.create({
+    model: userModel,
+    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, refresh_token }],
+  });
+  const access_token = await genAccessToken({ payload: { _id: user._id } });
+  return successResponse({ res, message: "User created successfully", status: 201, data: { access_token, user } });
+});
+```
+
+</details>
 
 </details>
 
@@ -297,20 +394,94 @@ SARAHAA-APP/
 ```json
 {
   "message": "User Logged in successfully",
-  "user": {
-    "_id": "...",
-    "fullName": "Ahmed Essam",
-    "email": "a1@example.com"
+  "data": {
+    "access_token": "<jwt_access_token>"
   }
 }
 ```
 
-**Response `404` — Invalid Email or Password:**
+**Response `404` — Invalid email or password:**
+```json
+{ "err_message": "Invalid email or password" }
+```
+
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const login = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+  const user = await DBService.findOne({ model: userModel, filter: { email } });
+  if (!user) return next(new Error("Invalid email or password", { cause: 404 }));
+  const match = await compareHash({ plainText: password, hashedPassword: user.password });
+  if (!match) return next(new Error("Invalid email or password", { cause: 404 }));
+  const access_token = await genAccessToken({ payload: { _id: user._id } });
+  return successResponse({ res, status: 200, message: "User Logged in successfully", data: { access_token } });
+});
+```
+
+</details>
+
+</details>
+
+---
+
+<details>
+<summary><code>POST</code> &nbsp; <strong>/auth/access_token</strong> — Get new Access & Refresh tokens using Refresh Token</summary>
+
+<br/>
+
+**Request Body:**
+```json
+{ "refreshToken": "<jwt_refresh_token>" }
+```
+
+**Response `200` — Success:**
 ```json
 {
-  "message": "Invalid Email or Password"
+  "message": "Done",
+  "data": {
+    "access_token": "<new_jwt_access_token>",
+    "refresh_token": "<new_jwt_refresh_token>"
+  }
 }
 ```
+
+**Response `400` — Missing or invalid refresh token:**
+```json
+{ "err_message": "Refresh Token is required" }
+```
+
+**Response `401` — Token mismatch:**
+```json
+{ "err_message": "Invalid Refresh Token" }
+```
+
+**Response `404` — User not found:**
+```json
+{ "err_message": "User not found" }
+```
+
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const getAccessToken = asyncHandler(async (req, res, next) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return next(new Error("Refresh Token is required", { cause: 400 }));
+  const verify = await verifyToken({ token: refreshToken, signature: process.env.JWT_REFRESH_KEY });
+  if (!verify?.email) return next(new Error("Invalid Refresh Token", { cause: 400 }));
+  const user = await DBService.findOne({ model: userModel, filter: { email: verify.email } });
+  if (!user) return next(new Error("User not found", { cause: 404 }));
+  if (user.refresh_token !== refreshToken) return next(new Error("Invalid Refresh Token", { cause: 401 }));
+  const access_token = await genAccessToken({ payload: { _id: user._id } });
+  const refresh_token = await genRefreshToken({ payload: { email: user.email } });
+  await DBService.findByIdAndUpdate({ model: userModel, id: user._id, updatedData: { refresh_token } });
+  return successResponse({ res, status: 200, data: { access_token, refresh_token } });
+});
+```
+
+</details>
 
 </details>
 
@@ -363,13 +534,15 @@ SARAHAA-APP/
 ## 👤 User — `/user` &nbsp; 🔒 *Protected*
 
 <details>
-<summary><code>GET</code> &nbsp; <strong>/user/:userId</strong> — Get current user profile</summary>
+<summary><code>GET</code> &nbsp; <strong>/user</strong> — Get current user profile</summary>
 
 <br/>
 
+> 🔒 Requires authentication middleware — pass `access_token` in `Authorization` header.
+> 📝 *Phone is stored encrypted in DB and decrypted before being returned.*
 **Headers:**
 ```
-Authorization: Bearer <token>
+Authorization: <access_token>
 ```
 
 **Response `200` — Success:**
@@ -386,7 +559,27 @@ Authorization: Bearer <token>
 }
 ```
 
-> 📝 *Phone number is stored encrypted in the DB and decrypted on retrieval before being returned in the response.*
+**Response `400` — Invalid token:**
+```json
+{ "err_message": "Invalid-Token" }
+```
+
+**Response `404` — User not found:**
+```json
+{ "err_message": "User Not Found" }
+```
+
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const getProfile = asyncHandler(async (req, res, next) => {
+  req.user.phone = await genDecrypt({ cipherText: req.user.phone });
+  return successResponse({ res, data: req.user });
+});
+```
+
+</details>
 
 </details>
 
