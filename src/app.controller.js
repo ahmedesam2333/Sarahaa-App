@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import connectDb from "./DB/connection.db.js";
 import authRoutes from "./auth/auth.route.js";
+import userRoutes from "./user/user.route.js";
 import { globalErrorHandling } from "./utils/response.js";
 const bootsrtap = async () => {
   const app = express();
@@ -18,6 +19,7 @@ const bootsrtap = async () => {
     res.json({ message: `Welcome to Sarahaa APP!` });
   });
   app.use("/auth", authRoutes);
+  app.use("/user", userRoutes);
   app.all("{/*dummy}", (req, res) => {
     res.status(404).json({ message: `Invalid URL Access` });
   });

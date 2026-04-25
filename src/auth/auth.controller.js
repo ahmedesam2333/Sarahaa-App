@@ -2,6 +2,7 @@ import userModel from "../DB/models/user.model.js";
 import * as DBService from "../DB/db.service.js";
 import { asyncHandler, successResponse } from "../utils/response.js";
 import { generateHash, compareHash } from "../utils/security/hash.security.js";
+import { genEncrypt } from "../utils/security/encrypt.security.js";
 
 //Register Api
 export const signup = asyncHandler(async (req, res, next) => {
@@ -10,6 +11,7 @@ export const signup = asyncHandler(async (req, res, next) => {
     return next(new Error("Email already exists", { cause: 409 }));
   }
   const hashedPassword = await generateHash({ plainText: password });
+  const encPhone = await genEncrypt({ plainText: phone });
   const user = await DBService.create({
     model: userModel,
     data: [
@@ -18,7 +20,7 @@ export const signup = asyncHandler(async (req, res, next) => {
         email,
         password: hashedPassword,
         gender,
-        phone,
+        phone: encPhone,
       },
     ],
   });

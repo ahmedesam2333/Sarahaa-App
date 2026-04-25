@@ -6,6 +6,14 @@ export const findOne = async ({
 } = {}) => {
   return await model.findOne(filter, projection).populate(populate);
 };
+export const findById = async ({
+  model,
+  id,
+  projection = {},
+  populate = [],
+} = {}) => {
+  return await model.findById(id, projection).populate(populate);
+};
 export const create = async ({
   model,
   data = [{}],
