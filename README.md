@@ -360,10 +360,10 @@ SARAHAA-APP/
 
 ---
 
-## 👤 User — `/users` &nbsp; 🔒 *Protected*
+## 👤 User — `/user` &nbsp; 🔒 *Protected*
 
 <details>
-<summary><code>GET</code> &nbsp; <strong>/users/me</strong> — Get current user profile</summary>
+<summary><code>GET</code> &nbsp; <strong>/user/:userId</strong> — Get current user profile</summary>
 
 <br/>
 
@@ -393,7 +393,7 @@ Authorization: Bearer <token>
 ---
 
 <details>
-<summary><code>PUT</code> &nbsp; <strong>/users/me</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>PUT</code> &nbsp; <strong>/user</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
 <br/>
 
@@ -404,7 +404,7 @@ Authorization: Bearer <token>
 ---
 
 <details>
-<summary><code>GET</code> &nbsp; <strong>/users/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>GET</code> &nbsp; <strong>/user/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
 <br/>
 
