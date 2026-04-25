@@ -194,19 +194,19 @@ export const genDecrypt = async ({
 import jwt from "jsonwebtoken";
 
 export const genAccessToken = async ({
-  payload = "",
+  payload = {},
   signature = process.env.JWT_ACCESS_KEY,
-  expiresIn = "15m",
+  options = { expiresIn: "15m" },
 } = {}) => {
-  return jwt.sign(payload, signature, { expiresIn });
+  return jwt.sign(payload, signature, options);
 };
 
 export const genRefreshToken = async ({
-  payload = "",
+  payload = {},
   signature = process.env.JWT_REFRESH_KEY,
-  expiresIn = "1y",
+  options = { expiresIn: "1y" },
 } = {}) => {
-  return jwt.sign(payload, signature, { expiresIn });
+  return jwt.sign(payload, signature, options);
 };
 
 export const verifyToken = async ({
