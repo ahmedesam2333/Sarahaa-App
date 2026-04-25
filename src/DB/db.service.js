@@ -6,6 +6,7 @@ export const findOne = async ({
 } = {}) => {
   return await model.findOne(filter, projection).populate(populate);
 };
+
 export const findById = async ({
   model,
   id,
@@ -14,10 +15,19 @@ export const findById = async ({
 } = {}) => {
   return await model.findById(id, projection).populate(populate);
 };
+
 export const create = async ({
   model,
   data = [{}],
   options = { validateBeforeSave: true },
 } = {}) => {
   return await model.create(data, options);
+};
+
+export const findByIdAndUpdate = async ({
+  model,
+  id,
+  updatedData = {},
+} = {}) => {
+  return await model.findByIdAndUpdate(id, updatedData, { after: true });
 };

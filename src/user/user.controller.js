@@ -5,10 +5,6 @@ import { genDecrypt } from "../utils/security/encrypt.security.js";
 
 //getProfile Api
 export const getProfile = asyncHandler(async (req, res, next) => {
-  const user = await DBService.findById({
-    model: userModel,
-    id: req.params.userId,
-  });
-  user.phone = await genDecrypt({ cipherText: user.phone });
-  return successResponse({ res, data: user });
+  req.user.phone = await genDecrypt({ cipherText: req.user.phone });
+  return successResponse({ res, data: req.user });
 });
