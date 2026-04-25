@@ -220,7 +220,6 @@ export const verifyToken = async ({
 </details>
 
 - [x] Authentication middleware — verifies token & attaches user to `req.user` (`src/middleware/authentication.middleware.js`)
-- [x] User model updated — `refresh_token` field added to schema
 
 <details>
 <summary><strong>🛡️ Authentication Middleware</strong> — <em>Click to see implementation</em></summary>
@@ -339,7 +338,8 @@ SARAHAA-APP/
       "fullName": "Ahmed Essam",
       "email": "a1@example.com",
       "gender": "male",
-      "phone": "<encrypted>"
+      "phone": "<encrypted>",
+      "refresh_token": "<jwt_refresh_token>"
     }
   }
 }
@@ -539,7 +539,7 @@ export const getAccessToken = asyncHandler(async (req, res, next) => {
 <br/>
 
 > 🔒 Requires authentication middleware — pass `access_token` in `Authorization` header.
-
+> 📝 *Phone is stored encrypted in DB and decrypted before being returned.*
 **Headers:**
 ```
 Authorization: <access_token>
@@ -568,8 +568,6 @@ Authorization: <access_token>
 ```json
 { "err_message": "User Not Found" }
 ```
-
-> 📝 *Phone is stored encrypted in DB and decrypted before being returned.*
 
 <details>
 <summary><em>Controller code</em></summary>
