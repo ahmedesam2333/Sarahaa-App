@@ -103,6 +103,15 @@ export const findOne = async ({
   return await model.findOne(filter, projection).populate(populate);
 };
 
+export const findById = async ({
+  model,
+  id,
+  projection = {},
+  populate = [],
+} = {}) => {
+  return await model.findById(id, projection).populate(populate);
+};
+
 export const create = async ({
   model,
   data = [{}],
@@ -137,12 +146,39 @@ export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
 
 </details>
 
+- [x] Encryption — AES symmetric encryption on sensitive fields (`src/utils/security/encrypt.security.js`)
+
+<details>
+<summary><strong>🔐 Encryption — AES (crypto-js)</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+import CryptoJS from "crypto-js";
+
+export const genEncrypt = async ({
+  plainText = "",
+  secretKey = process.env.AES_SECRET_KEY,
+}) => {
+  return CryptoJS.AES.encrypt(plainText, secretKey).toString();
+};
+
+export const genDecrypt = async ({
+  cipherText = "",
+  secretKey = process.env.AES_SECRET_KEY,
+}) => {
+  return CryptoJS.AES.decrypt(cipherText, secretKey).toString(
+    CryptoJS.enc.Utf8
+  );
+};
+```
+
+</details>
+
 ---
 
 ### 🔜 In Progress / Upcoming
 
-- [ ] Encryption — Symmetric vs Asymmetric (`crypto-js`)
-- [ ] Implement encryption on sensitive fields (phone numbers)
 - [ ] Tokens — what they are & why we need them
 - [ ] Generate Access & Refresh tokens (`jsonwebtoken`)
 - [ ] Verify token middleware
@@ -176,11 +212,13 @@ SARAHAA-APP/
 │   │   ├── db.service.js      (generalized ODM-agnostic methods)
 │   │   └── connection.js
 │   ├── user/
-│   │   └── ⬜ add user files here as you build
+│   │   ├── user.controller.js
+│   │   └── user.routes.js
 │   └── utils/
 │   │   ├── response.js        (asyncHandler + success/error helpers + Global Error Handling)
 │   │   └── security/
-│   │       └── hash.security.js   (bcrypt generateHash + compareHash)
+│   │       ├── hash.security.js       (bcrypt generateHash + compareHash)
+│   │       └── encrypt.security.js    (AES genEncrypt + genDecrypt)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -322,21 +360,40 @@ SARAHAA-APP/
 
 ---
 
-## 👤 User — `/users` &nbsp; 🔒 *Protected*
+## 👤 User — `/user` &nbsp; 🔒 *Protected*
 
 <details>
-<summary><code>GET</code> &nbsp; <strong>/users/me</strong> — Get current user profile &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>GET</code> &nbsp; <strong>/user/:userId</strong> — Get current user profile</summary>
 
 <br/>
 
-> ⬜ *Add request, success response, and error cases when implemented*
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Response `200` — Success:**
+```json
+{
+  "message": "Done",
+  "data": {
+    "_id": "...",
+    "fullName": "Ahmed Essam",
+    "email": "a1@example.com",
+    "gender": "male",
+    "phone": "01234567891"
+  }
+}
+```
+
+> 📝 *Phone number is stored encrypted in the DB and decrypted on retrieval before being returned in the response.*
 
 </details>
 
 ---
 
 <details>
-<summary><code>PUT</code> &nbsp; <strong>/users/me</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>PUT</code> &nbsp; <strong>/user</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
 <br/>
 
@@ -347,7 +404,7 @@ SARAHAA-APP/
 ---
 
 <details>
-<summary><code>GET</code> &nbsp; <strong>/users/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>GET</code> &nbsp; <strong>/user/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
 
 <br/>
 
