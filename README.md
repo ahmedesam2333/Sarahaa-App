@@ -280,8 +280,7 @@ export const generateLoginCredentials = async ({ user } = {}) => {
 
 </details>
 
-- [x] Authentication middleware — decodes Bearer/Admin token, attaches user to `req.user`, supports access & refresh token types (`src/middleware/authentication.middleware.js`)
-- [x] User model updated — `refresh_token` field added to schema
+- [x] Authentication middleware — decodes Bearer/Admin token, supports access & refresh token types (`src/middleware/authentication.middleware.js`)
 
 <details>
 <summary><strong>🛡️ Authentication Middleware</strong> — <em>Click to see implementation</em></summary>
@@ -338,7 +337,7 @@ SARAHAA-APP/
 │   │   └── auth.routes.js
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js          (includes refresh_token field)
+│   │   │   └── user.model.js          
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
 │   ├── middleware/
@@ -416,6 +415,7 @@ export default router;
       "email": "a1@example.com",
       "gender": "male",
       "phone": "<encrypted>"
+      "role": "user"
     }
   }
 }
@@ -431,7 +431,7 @@ export default router;
 
 ```javascript
 export const signup = asyncHandler(async (req, res, next) => {
-  const { fullName, email, password, gender, phone } = req.body;
+  const { fullName, email, password, gender, phone , role } = req.body;
   if (await DBService.findOne({ model: userModel, filter: { email } })) {
     return next(new Error("Email already exists", { cause: 409 }));
   }
@@ -439,7 +439,7 @@ export const signup = asyncHandler(async (req, res, next) => {
   const encPhone = await genEncrypt({ plainText: phone });
   const user = await DBService.create({
     model: userModel,
-    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone }],
+    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone , role }],
   });
   return successResponse({ res, message: "User created successfully", status: 201, data: { user } });
 });
