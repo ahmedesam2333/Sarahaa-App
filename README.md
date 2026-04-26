@@ -196,7 +196,7 @@ import jwt from "jsonwebtoken";
 export const genAccessToken = async ({
   payload = {},
   signature = process.env.JWT_ACCESS_KEY,
-  options = { expiresIn: "15m" },
+  options = { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN },
 } = {}) => {
   return jwt.sign(payload, signature, options);
 };
@@ -204,7 +204,7 @@ export const genAccessToken = async ({
 export const genRefreshToken = async ({
   payload = {},
   signature = process.env.JWT_REFRESH_KEY,
-  options = { expiresIn: "1y" },
+  options = { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN },
 } = {}) => {
   return jwt.sign(payload, signature, options);
 };
