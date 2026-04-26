@@ -279,7 +279,7 @@ SARAHAA-APP/
 │   │   └── auth.routes.js
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js          (includes refresh_token field)
+│   │   │   └── user.model.js          
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
 │   ├── middleware/
