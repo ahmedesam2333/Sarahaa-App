@@ -475,8 +475,6 @@ export const signup = asyncHandler(async (req, res, next) => {
 }
 ```
 
-> 🔑 Tokens are signed with **Bearer** keys for regular users and **Admin** keys for admins, via `generateLoginCredentials`.
-
 **Response `404` — Invalid email or password:**
 ```json
 { "err_message": "Invalid email or password" }
