@@ -33,10 +33,6 @@ const userSchema = new mongoose.Schema(
     },
     phone: String,
     confirmEmail: Date,
-    refresh_token: {
-      type: String,
-      required: true,
-    },
   },
   {
     timestamps: true,

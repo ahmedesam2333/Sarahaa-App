@@ -17,9 +17,6 @@ export const signup = asyncHandler(async (req, res, next) => {
   }
   const hashedPassword = await generateHash({ plainText: password });
   const encPhone = await genEncrypt({ plainText: phone });
-  const refresh_token = await genRefreshToken({
-    payload: { email },
-  });
   const user = await DBService.create({
     model: userModel,
     data: [
@@ -29,18 +26,14 @@ export const signup = asyncHandler(async (req, res, next) => {
         password: hashedPassword,
         gender,
         phone: encPhone,
-        refresh_token,
       },
     ],
-  });
-  const access_token = await genAccessToken({
-    payload: { _id: user._id },
   });
   return successResponse({
     res,
     message: "User created successfully",
     status: 201,
-    data: { access_token, user },
+    data: { user },
   });
 });
 
@@ -62,15 +55,16 @@ export const login = asyncHandler(async (req, res, next) => {
     return next(new Error("Invalid email or password", { cause: 404 }));
   }
   const access_token = await genAccessToken({ payload: { _id: user._id } });
+  const refresh_token = await genRefreshToken({ payload: { _id: user._id } });
   return successResponse({
     res,
     status: 200,
     message: "User Logged in successfully",
-    data: { access_token },
+    data: { access_token, refresh_token },
   });
 });
 
-//getNewAccesTocken Api
+//Get New Access Token Api
 export const getAccessToken = asyncHandler(async (req, res, next) => {
   const { refreshToken } = req.body;
   if (!refreshToken)
@@ -81,31 +75,21 @@ export const getAccessToken = asyncHandler(async (req, res, next) => {
     signature: process.env.JWT_REFRESH_KEY,
   });
 
-  if (!verify?.email)
+  if (!verify?._id)
     return next(new Error("Invalid Refresh Token", { cause: 400 }));
 
-  const user = await DBService.findOne({
+  const user = await DBService.findById({
     model: userModel,
-    filter: { email: verify.email },
+    id: verify._id,
   });
+
   if (!user) return next(new Error("User not found", { cause: 404 }));
-  const isTokenValid = user.refresh_token === refreshToken;
-  if (!isTokenValid)
-    return next(new Error("Invalid Refresh Token", { cause: 401 }));
 
   const access_token = await genAccessToken({ payload: { _id: user._id } });
-  const refresh_token = await genRefreshToken({
-    payload: { email: user.email },
-  });
-  await DBService.findByIdAndUpdate({
-    model: userModel,
-    id: user._id,
-    updatedData: { refresh_token },
-  });
 
   return successResponse({
     res,
     status: 200,
-    data: { access_token, refresh_token },
+    data: { access_token, refresh_token: refreshToken },
   });
 });
