@@ -332,14 +332,12 @@ SARAHAA-APP/
 {
   "message": "User created successfully",
   "data": {
-    "access_token": "<jwt_access_token>",
     "user": {
       "_id": "...",
       "fullName": "Ahmed Essam",
       "email": "a1@example.com",
       "gender": "male",
       "phone": "<encrypted>",
-      "refresh_token": "<jwt_refresh_token>"
     }
   }
 }
@@ -361,13 +359,11 @@ export const signup = asyncHandler(async (req, res, next) => {
   }
   const hashedPassword = await generateHash({ plainText: password });
   const encPhone = await genEncrypt({ plainText: phone });
-  const refresh_token = await genRefreshToken({ payload: { email } });
   const user = await DBService.create({
     model: userModel,
-    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, refresh_token }],
+    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone }],
   });
-  const access_token = await genAccessToken({ payload: { _id: user._id } });
-  return successResponse({ res, message: "User created successfully", status: 201, data: { access_token, user } });
+  return successResponse({ res, message: "User created successfully", status: 201, data: { user } });
 });
 ```
 
