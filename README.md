@@ -22,9 +22,9 @@
 
 - [Overview](#-overview)
 - [Features](#-features)
-- [Project Structure](#-project-structure)
+- [Project Structure](#%EF%B8%8F-project-structure)
 - [API Documentation](#-api-documentation)
-- [Author](#-author)
+- [Author](#%E2%80%8D-author)
 
 ---
 
@@ -183,7 +183,7 @@ export const genDecrypt = async ({
 
 </details>
 
-- [x] JWT — Access & Refresh token generation + verification (`src/utils/security/token.security.js`)
+- [x] JWT — Role-aware token system with Bearer/Admin signature levels, `decodeToken`, and `generateLoginCredentials` (`src/utils/security/token.security.js`)
 
 <details>
 <summary><strong>🪙 JWT Tokens</strong> — <em>Click to see implementation</em></summary>
@@ -192,34 +192,95 @@ export const genDecrypt = async ({
 
 ```javascript
 import jwt from "jsonwebtoken";
+import userModel from "../../DB/models/user.model.js";
+import * as DBService from "../../DB/db.service.js";
+
+export const signatureLevelEnum = { bearer: "Bearer", admin: "Admin" };
+export const tokenTypeEnum = { access: "access", refresh: "refresh" };
 
 export const genAccessToken = async ({
   payload = {},
-  signature = process.env.JWT_ACCESS_KEY,
-  options = { expiresIn: "15m" },
+  signature = process.env.JWT_ACCESS_USER_KEY,
+  options = { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN },
 } = {}) => {
   return jwt.sign(payload, signature, options);
 };
 
 export const genRefreshToken = async ({
   payload = {},
-  signature = process.env.JWT_REFRESH_KEY,
-  options = { expiresIn: "1y" },
+  signature = process.env.JWT_REFRESH_USER_KEY,
+  options = { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN },
 } = {}) => {
   return jwt.sign(payload, signature, options);
 };
 
 export const verifyToken = async ({
   token = "",
-  signature = process.env.JWT_ACCESS_KEY,
+  signature = process.env.JWT_REFRESH_USER_KEY,
 } = {}) => {
   return jwt.verify(token, signature);
+};
+
+export const getSignatures = async ({
+  signatureLevel = signatureLevelEnum.bearer,
+} = {}) => {
+  let signatures = { accessSignature: undefined, refreshSignature: undefined };
+  switch (signatureLevel) {
+    case signatureLevelEnum.admin:
+      signatures.accessSignature = process.env.JWT_ACCESS_ADMIN_KEY;
+      signatures.refreshSignature = process.env.JWT_REFRESH_ADMIN_KEY;
+      break;
+    default:
+      signatures.accessSignature = process.env.JWT_ACCESS_USER_KEY;
+      signatures.refreshSignature = process.env.JWT_REFRESH_USER_KEY;
+  }
+  return signatures;
+};
+
+export const decodeToken = async ({
+  next,
+  authorization = "",
+  tokenType = tokenTypeEnum.access,
+} = {}) => {
+  const [Bearer, token] = authorization?.split(" ") || [];
+  if (!Bearer || !token)
+    return next(new Error("Missing-Token-Parts", { cause: 401 }));
+  let signatures = await getSignatures({ signatureLevel: Bearer });
+  const decoded = await verifyToken({
+    token,
+    signature:
+      tokenType === tokenTypeEnum.access
+        ? signatures.accessSignature
+        : signatures.refreshSignature,
+  });
+  if (!decoded?._id) return next(new Error("Invalid-Token", { cause: 400 }));
+  const user = await DBService.findById({ model: userModel, id: decoded._id });
+  if (!user) return next(new Error("User Not Found", { cause: 404 }));
+  return user;
+};
+
+export const generateLoginCredentials = async ({ user } = {}) => {
+  let signatures = await getSignatures({
+    signatureLevel:
+      user.role !== "user"
+        ? signatureLevelEnum.admin
+        : signatureLevelEnum.bearer,
+  });
+  const access_token = await genAccessToken({
+    payload: { _id: user._id },
+    signature: signatures.accessSignature,
+  });
+  const refresh_token = await genRefreshToken({
+    payload: { _id: user._id },
+    signature: signatures.refreshSignature,
+  });
+  return { access_token, refresh_token };
 };
 ```
 
 </details>
 
-- [x] Authentication middleware — verifies token & attaches user to `req.user` (`src/middleware/authentication.middleware.js`)
+- [x] Authentication middleware — decodes Bearer/Admin token, supports access & refresh token types (`src/middleware/authentication.middleware.js`)
 
 <details>
 <summary><strong>🛡️ Authentication Middleware</strong> — <em>Click to see implementation</em></summary>
@@ -228,21 +289,18 @@ export const verifyToken = async ({
 
 ```javascript
 import { asyncHandler } from "../utils/response.js";
-import { verifyToken } from "../utils/security/token.security.js";
-import userModel from "../DB/models/user.model.js";
-import * as DBService from "../DB/db.service.js";
+import {
+  decodeToken,
+  tokenTypeEnum,
+} from "../utils/security/token.security.js";
 
-export const authentication = () => {
+export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
   return asyncHandler(async (req, res, next) => {
-    const { authorization } = req.headers;
-    const decoded = await verifyToken({ token: authorization });
-    if (!decoded?._id) return next(new Error("Invalid-Token", { cause: 400 }));
-    const user = await DBService.findById({
-      model: userModel,
-      id: decoded._id,
+    req.user = await decodeToken({
+      next,
+      authorization: req.headers?.authorization,
+      tokenType,
     });
-    if (!user) return next(new Error("User Not Found", { cause: 404 }));
-    req.user = user;
     return next();
   });
 };
@@ -279,7 +337,7 @@ SARAHAA-APP/
 │   │   └── auth.routes.js
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js          (includes refresh_token field)
+│   │   │   └── user.model.js          
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
 │   ├── middleware/
@@ -292,7 +350,7 @@ SARAHAA-APP/
 │   │   └── security/
 │   │       ├── hash.security.js       (bcrypt generateHash + compareHash)
 │   │       ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
-│   │       └── token.security.js      (JWT genAccessToken + genRefreshToken + verifyToken)
+│   │       └── token.security.js      (JWT gen/verify tokens + decodeToken + generateLoginCredentials + role-aware signatures)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -310,6 +368,25 @@ SARAHAA-APP/
 ---
 
 ## 🔑 Auth — `/auth`
+
+<details>
+<summary><strong>Routes</strong> — <em>auth.routes.js</em></summary>
+
+<br/>
+
+```javascript
+import express from "express";
+import * as authController from "./auth.controller.js";
+const router = express.Router();
+
+router.post("/signup", authController.signup);
+router.post("/login", authController.login);
+export default router;
+```
+
+</details>
+
+---
 
 <details>
 <summary><code>POST</code> &nbsp; <strong>/auth/signup</strong> — Register a new user</summary>
@@ -332,14 +409,13 @@ SARAHAA-APP/
 {
   "message": "User created successfully",
   "data": {
-    "access_token": "<jwt_access_token>",
     "user": {
       "_id": "...",
       "fullName": "Ahmed Essam",
       "email": "a1@example.com",
       "gender": "male",
-      "phone": "<encrypted>",
-      "refresh_token": "<jwt_refresh_token>"
+      "phone": "<encrypted>"
+      "role": "user"
     }
   }
 }
@@ -355,19 +431,17 @@ SARAHAA-APP/
 
 ```javascript
 export const signup = asyncHandler(async (req, res, next) => {
-  const { fullName, email, password, gender, phone } = req.body;
+  const { fullName, email, password, gender, phone , role } = req.body;
   if (await DBService.findOne({ model: userModel, filter: { email } })) {
     return next(new Error("Email already exists", { cause: 409 }));
   }
   const hashedPassword = await generateHash({ plainText: password });
   const encPhone = await genEncrypt({ plainText: phone });
-  const refresh_token = await genRefreshToken({ payload: { email } });
   const user = await DBService.create({
     model: userModel,
-    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, refresh_token }],
+    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone , role }],
   });
-  const access_token = await genAccessToken({ payload: { _id: user._id } });
-  return successResponse({ res, message: "User created successfully", status: 201, data: { access_token, user } });
+  return successResponse({ res, message: "User created successfully", status: 201, data: { user } });
 });
 ```
 
@@ -390,12 +464,13 @@ export const signup = asyncHandler(async (req, res, next) => {
 }
 ```
 
-**Response `200` — Success:**
+**Response `200` — Success** *(message adapts based on role)*:
 ```json
 {
   "message": "User Logged in successfully",
   "data": {
-    "access_token": "<jwt_access_token>"
+    "access_token": "<jwt_access_token>",
+    "refresh_token": "<jwt_refresh_token>"
   }
 }
 ```
@@ -415,69 +490,13 @@ export const login = asyncHandler(async (req, res, next) => {
   if (!user) return next(new Error("Invalid email or password", { cause: 404 }));
   const match = await compareHash({ plainText: password, hashedPassword: user.password });
   if (!match) return next(new Error("Invalid email or password", { cause: 404 }));
-  const access_token = await genAccessToken({ payload: { _id: user._id } });
-  return successResponse({ res, status: 200, message: "User Logged in successfully", data: { access_token } });
-});
-```
-
-</details>
-
-</details>
-
----
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/access_token</strong> — Get new Access & Refresh tokens using Refresh Token</summary>
-
-<br/>
-
-**Request Body:**
-```json
-{ "refreshToken": "<jwt_refresh_token>" }
-```
-
-**Response `200` — Success:**
-```json
-{
-  "message": "Done",
-  "data": {
-    "access_token": "<new_jwt_access_token>",
-    "refresh_token": "<new_jwt_refresh_token>"
-  }
-}
-```
-
-**Response `400` — Missing or invalid refresh token:**
-```json
-{ "err_message": "Refresh Token is required" }
-```
-
-**Response `401` — Token mismatch:**
-```json
-{ "err_message": "Invalid Refresh Token" }
-```
-
-**Response `404` — User not found:**
-```json
-{ "err_message": "User not found" }
-```
-
-<details>
-<summary><em>Controller code</em></summary>
-
-```javascript
-export const getAccessToken = asyncHandler(async (req, res, next) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) return next(new Error("Refresh Token is required", { cause: 400 }));
-  const verify = await verifyToken({ token: refreshToken, signature: process.env.JWT_REFRESH_KEY });
-  if (!verify?.email) return next(new Error("Invalid Refresh Token", { cause: 400 }));
-  const user = await DBService.findOne({ model: userModel, filter: { email: verify.email } });
-  if (!user) return next(new Error("User not found", { cause: 404 }));
-  if (user.refresh_token !== refreshToken) return next(new Error("Invalid Refresh Token", { cause: 401 }));
-  const access_token = await genAccessToken({ payload: { _id: user._id } });
-  const refresh_token = await genRefreshToken({ payload: { email: user.email } });
-  await DBService.findByIdAndUpdate({ model: userModel, id: user._id, updatedData: { refresh_token } });
-  return successResponse({ res, status: 200, data: { access_token, refresh_token } });
+  const credentials = await generateLoginCredentials({ user });
+  return successResponse({
+    res,
+    status: 200,
+    message: `${user.role === "user" ? "User" : "Admin"} Logged in successfully`,
+    data: credentials,
+  });
 });
 ```
 
@@ -534,15 +553,42 @@ export const getAccessToken = asyncHandler(async (req, res, next) => {
 ## 👤 User — `/user` &nbsp; 🔒 *Protected*
 
 <details>
+<summary><strong>Routes</strong> — <em>user.routes.js</em></summary>
+
+<br/>
+
+```javascript
+import express from "express";
+import * as userController from "./user.controller.js";
+import { authentication } from "../middleware/authentication.middleware.js";
+import { tokenTypeEnum } from "../utils/security/token.security.js";
+const router = express.Router();
+
+router.get("/", authentication(), userController.getProfile);
+router.get(
+  "/refresh-token",
+  authentication({ tokenType: tokenTypeEnum.refresh }),
+  userController.getNewLoginCredentials
+);
+
+export default router;
+```
+
+</details>
+
+---
+
+<details>
 <summary><code>GET</code> &nbsp; <strong>/user</strong> — Get current user profile</summary>
 
 <br/>
 
-> 🔒 Requires authentication middleware — pass `access_token` in `Authorization` header.
-> 📝 *Phone is stored encrypted in DB and decrypted before being returned.*
+> 🔒 Protected — pass access token in `Authorization` header using `Bearer` (user) or `Admin` prefix.
+
 **Headers:**
 ```
-Authorization: <access_token>
+Authorization: Bearer <access_token>
+Authorization: Admin <access_token>
 ```
 
 **Response `200` — Success:**
@@ -559,6 +605,68 @@ Authorization: <access_token>
 }
 ```
 
+**Response `401` — Missing token parts:**
+```json
+{ "err_message": "Missing-Token-Parts" }
+```
+
+**Response `400` — Invalid token:**
+```json
+{ "err_message": "Invalid-Token" }
+```
+
+**Response `404` — User not found:**
+```json
+{ "err_message": "User Not Found" }
+```
+
+> 📝 *Phone is stored encrypted in DB and decrypted before being returned.*
+
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const getProfile = asyncHandler(async (req, res, next) => {
+  req.user.phone = await genDecrypt({ cipherText: req.user.phone });
+  return successResponse({ res, data: req.user });
+});
+```
+
+</details>
+
+</details>
+
+---
+
+<details>
+<summary><code>GET</code> &nbsp; <strong>/user/refresh-token</strong> — Get new access & refresh tokens</summary>
+
+<br/>
+
+> 🔒 Protected — pass **refresh token** in `Authorization` header using `Bearer` (user) or `Admin` prefix.
+
+**Headers:**
+```
+Authorization: Bearer <refresh_token>
+Authorization: Admin <refresh_token>
+```
+
+**Response `200` — Success:**
+```json
+{
+  "message": "Done",
+  "data": {
+    "access_token": "<new_jwt_access_token>",
+    "refresh_token": "<new_jwt_refresh_token>"
+  }
+}
+```
+
+**Response `401` — Missing token parts:**
+```json
+{ "err_message": "Missing-Token-Parts" }
+```
+
 **Response `400` — Invalid token:**
 ```json
 { "err_message": "Invalid-Token" }
@@ -573,9 +681,9 @@ Authorization: <access_token>
 <summary><em>Controller code</em></summary>
 
 ```javascript
-export const getProfile = asyncHandler(async (req, res, next) => {
-  req.user.phone = await genDecrypt({ cipherText: req.user.phone });
-  return successResponse({ res, data: req.user });
+export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
+  const newCredentials = await generateLoginCredentials({ user: req.user });
+  return successResponse({ res, status: 200, data: newCredentials });
 });
 ```
 
