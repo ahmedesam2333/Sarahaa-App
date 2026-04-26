@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
+
 const genderEnum = ["male", "female"];
+const roleEnum = ["user", "admin"];
+
 const userSchema = new mongoose.Schema(
   {
     firstName: {
@@ -30,6 +33,14 @@ const userSchema = new mongoose.Schema(
         message: `Gender allows only ${genderEnum[0]} or ${genderEnum[1]}`,
       },
       default: genderEnum[0],
+    },
+    role: {
+      type: String,
+      enum: {
+        values: roleEnum,
+        message: `Role allows only ${roleEnum[0]} or ${roleEnum[1]}`,
+      },
+      default: roleEnum[0],
     },
     phone: String,
     confirmEmail: Date,
