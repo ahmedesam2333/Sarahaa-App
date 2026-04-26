@@ -391,7 +391,8 @@ export const signup = asyncHandler(async (req, res, next) => {
 {
   "message": "User Logged in successfully",
   "data": {
-    "access_token": "<jwt_access_token>"
+    "access_token": "<jwt_access_token>",
+    "refresh_token": "<jwt_refresh_token>"
   }
 }
 ```
@@ -412,7 +413,8 @@ export const login = asyncHandler(async (req, res, next) => {
   const match = await compareHash({ plainText: password, hashedPassword: user.password });
   if (!match) return next(new Error("Invalid email or password", { cause: 404 }));
   const access_token = await genAccessToken({ payload: { _id: user._id } });
-  return successResponse({ res, status: 200, message: "User Logged in successfully", data: { access_token } });
+  const refresh_token = await genRefreshToken({ payload: { _id: user._id } });
+  return successResponse({ res, status: 200, message: "User Logged in successfully", data: { access_token , refresh_token } });
 });
 ```
 
@@ -438,7 +440,7 @@ export const login = asyncHandler(async (req, res, next) => {
   "message": "Done",
   "data": {
     "access_token": "<new_jwt_access_token>",
-    "refresh_token": "<new_jwt_refresh_token>"
+    "refresh_token": "<jwt_refresh_token>"
   }
 }
 ```
@@ -464,16 +466,31 @@ export const login = asyncHandler(async (req, res, next) => {
 ```javascript
 export const getAccessToken = asyncHandler(async (req, res, next) => {
   const { refreshToken } = req.body;
-  if (!refreshToken) return next(new Error("Refresh Token is required", { cause: 400 }));
-  const verify = await verifyToken({ token: refreshToken, signature: process.env.JWT_REFRESH_KEY });
-  if (!verify?.email) return next(new Error("Invalid Refresh Token", { cause: 400 }));
-  const user = await DBService.findOne({ model: userModel, filter: { email: verify.email } });
+  if (!refreshToken)
+    return next(new Error("Refresh Token is required", { cause: 400 }));
+
+  const verify = await verifyToken({
+    token: refreshToken,
+    signature: process.env.JWT_REFRESH_KEY,
+  });
+
+  if (!verify?._id)
+    return next(new Error("Invalid Refresh Token", { cause: 400 }));
+
+  const user = await DBService.findById({
+    model: userModel,
+    id: verify._id,
+  });
+
   if (!user) return next(new Error("User not found", { cause: 404 }));
-  if (user.refresh_token !== refreshToken) return next(new Error("Invalid Refresh Token", { cause: 401 }));
+
   const access_token = await genAccessToken({ payload: { _id: user._id } });
-  const refresh_token = await genRefreshToken({ payload: { email: user.email } });
-  await DBService.findByIdAndUpdate({ model: userModel, id: user._id, updatedData: { refresh_token } });
-  return successResponse({ res, status: 200, data: { access_token, refresh_token } });
+
+  return successResponse({
+    res,
+    status: 200,
+    data: { access_token, refresh_token: refreshToken },
+  });
 });
 ```
 
