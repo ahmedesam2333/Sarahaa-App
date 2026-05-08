@@ -1,8 +1,8 @@
-import userModel from "../DB/models/user.model.js";
-import * as DBService from "../DB/db.service.js";
-import { asyncHandler, successResponse } from "../utils/response.js";
-import { genDecrypt } from "../utils/security/encrypt.security.js";
-import { generateLoginCredentials } from "../utils/security/token.security.js";
+import userModel from "../../DB/models/user.model.js";
+import * as DBService from "../../DB/db.service.js";
+import { asyncHandler, successResponse } from "../../utils/response.js";
+import { genDecrypt } from "../../utils/security/encrypt.security.js";
+import { generateLoginCredentials } from "../../utils/security/token.security.js";
 
 //getProfile Api
 export const getProfile = asyncHandler(async (req, res, next) => {

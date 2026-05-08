@@ -1,9 +1,12 @@
-import userModel from "../DB/models/user.model.js";
-import * as DBService from "../DB/db.service.js";
-import { asyncHandler, successResponse } from "../utils/response.js";
-import { generateHash, compareHash } from "../utils/security/hash.security.js";
-import { genEncrypt } from "../utils/security/encrypt.security.js";
-import { generateLoginCredentials } from "../utils/security/token.security.js";
+import userModel from "../../DB/models/user.model.js";
+import * as DBService from "../../DB/db.service.js";
+import { asyncHandler, successResponse } from "../../utils/response.js";
+import {
+  generateHash,
+  compareHash,
+} from "../../utils/security/hash.security.js";
+import { genEncrypt } from "../../utils/security/encrypt.security.js";
+import { generateLoginCredentials } from "../../utils/security/token.security.js";
 
 //Register Api
 export const signup = asyncHandler(async (req, res, next) => {
