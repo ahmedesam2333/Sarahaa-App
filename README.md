@@ -7,6 +7,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -21,9 +22,10 @@
 
 - [Overview](#-overview)
 - [Features](#-features)
+- [Database Structure](#-database-structure)
 - [Project Structure](#%EF%B8%8F-project-structure)
 - [API Documentation](#-api-documentation)
-- [Author](#%E2%80%8D-author)
+- [Author](#-author)
 
 ---
 
@@ -44,8 +46,6 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 ### ✔️ Completed
 
 - [x] Folder structure & project setup
-- [x] MongoDB database connection
-- [x] User model (schema design)
 - [x] Sign Up & Login endpoints
 - [x] Async error handler utility (`asyncHandler`)
 - [x] Global error handling middleware
@@ -80,51 +80,6 @@ export const globalErrorHandling = (error, req, res, next) => {
   return res
     .status(error.cause || 400)
     .json({ err_message: error.message, stack: error.stack });
-};
-```
-
-</details>
-
-- [x] DB Service layer — generalized ODM-agnostic data access methods
-
-<details>
-<summary><strong>🗄️ DB Service</strong> — <em>Click to see example</em></summary>
-
-<br/>
-
-```javascript
-export const findOne = async ({
-  model,
-  filter = {},
-  projection = {},
-  populate = [],
-} = {}) => {
-  return await model.findOne(filter, projection).populate(populate);
-};
-
-export const findById = async ({
-  model,
-  id,
-  projection = {},
-  populate = [],
-} = {}) => {
-  return await model.findById(id, projection).populate(populate);
-};
-
-export const create = async ({
-  model,
-  data = [{}],
-  options = { validateBeforeSave: true },
-} = {}) => {
-  return await model.create(data, options);
-};
-
-export const findByIdAndUpdate = async ({
-  model,
-  id,
-  updatedData = {},
-} = {}) => {
-  return await model.findByIdAndUpdate(id, updatedData, { after: true });
 };
 ```
 
@@ -279,7 +234,7 @@ export const generateLoginCredentials = async ({ user } = {}) => {
 
 </details>
 
-- [x] Authentication middleware — decodes Bearer/Admin token, supports access & refresh token types (`src/middleware/authentication.middleware.js`)
+- [x] Authentication middleware — decodes Bearer/Admin token, attaches user to `req.user`, supports access & refresh token types (`src/middleware/authentication.middleware.js`)
 
 <details>
 <summary><strong>🛡️ Authentication Middleware</strong> — <em>Click to see implementation</em></summary>
@@ -326,30 +281,101 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 
 ---
 
+## 🗃️ Database Structure
+
+### MongoDB Connection
+
+> Managed via `src/DB/connection.js` using Mongoose.
+
+---
+
+### 📄 User Model — `src/DB/models/user.model.js`
+
+| Field | Type | Notes |
+|---|---|---|
+| `fullName` | String | Required |
+| `email` | String | Required · Unique |
+| `password` | String | Stored as bcrypt hash |
+| `gender` | String | `male` / `female` |
+| `phone` | String | Stored AES-encrypted |
+| `role` | String | `user` / `admin` · Default: `user` |
+
+---
+
+### 🗄️ DB Service Layer — `src/DB/db.service.js`
+
+Generalized ODM-agnostic methods so swapping Mongoose requires changes in one place only.
+
+<details>
+<summary><strong>Click to see all methods</strong></summary>
+
+<br/>
+
+```javascript
+export const findOne = async ({
+  model,
+  filter = {},
+  projection = {},
+  populate = [],
+} = {}) => {
+  return await model.findOne(filter, projection).populate(populate);
+};
+
+export const findById = async ({
+  model,
+  id,
+  projection = {},
+  populate = [],
+} = {}) => {
+  return await model.findById(id, projection).populate(populate);
+};
+
+export const create = async ({
+  model,
+  data = [{}],
+  options = { validateBeforeSave: true },
+} = {}) => {
+  return await model.create(data, options);
+};
+
+export const findByIdAndUpdate = async ({
+  model,
+  id,
+  updatedData = {},
+} = {}) => {
+  return await model.findByIdAndUpdate(id, updatedData, { after: true });
+};
+```
+
+</details>
+
+---
+
 ## 🗂️ Project Structure
 
 ```
 SARAHAA-APP/
 ├── src/
-│   ├── auth/
-│   │   ├── auth.controller.js
-│   │   └── auth.routes.js
+│   ├── modules/
+│   │   ├── auth/
+│   │   │   ├── auth.controller.js
+│   │   │   └── auth.routes.js
+│   │   └── user/
+│   │       ├── user.controller.js
+│   │       └── user.routes.js
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js          
+│   │   │   └── user.model.js          (fullName, email, password, gender, phone, role)
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
 │   ├── middleware/
 │   │   └── authentication.middleware.js
-│   ├── user/
-│   │   ├── user.controller.js
-│   │   └── user.routes.js
 │   └── utils/
-│   │   ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
-│   │   └── security/
-│   │       ├── hash.security.js       (bcrypt generateHash + compareHash)
-│   │       ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
-│   │       └── token.security.js      (JWT gen/verify tokens + decodeToken + generateLoginCredentials + role-aware signatures)
+│       ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
+│       └── security/
+│           ├── hash.security.js       (bcrypt generateHash + compareHash)
+│           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
+│           └── token.security.js      (JWT gen/verify tokens + decodeToken + generateLoginCredentials + role-aware signatures)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -414,7 +440,6 @@ export default router;
       "email": "a1@example.com",
       "gender": "male",
       "phone": "<encrypted>"
-      "role": "user"
     }
   }
 }
@@ -430,7 +455,7 @@ export default router;
 
 ```javascript
 export const signup = asyncHandler(async (req, res, next) => {
-  const { fullName, email, password, gender, phone , role } = req.body;
+  const { fullName, email, password, gender, phone } = req.body;
   if (await DBService.findOne({ model: userModel, filter: { email } })) {
     return next(new Error("Email already exists", { cause: 409 }));
   }
@@ -438,7 +463,7 @@ export const signup = asyncHandler(async (req, res, next) => {
   const encPhone = await genEncrypt({ plainText: phone });
   const user = await DBService.create({
     model: userModel,
-    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone , role }],
+    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone }],
   });
   return successResponse({ res, message: "User created successfully", status: 201, data: { user } });
 });
@@ -473,6 +498,8 @@ export const signup = asyncHandler(async (req, res, next) => {
   }
 }
 ```
+
+> 🔑 Tokens are signed with **Bearer** keys for regular users and **Admin** keys for admins, via `generateLoginCredentials`.
 
 **Response `404` — Invalid email or password:**
 ```json
