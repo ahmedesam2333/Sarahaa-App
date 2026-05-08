@@ -7,7 +7,6 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -291,14 +290,95 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 
 ### 📄 User Model — `src/DB/models/user.model.js`
 
-| Field | Type | Notes |
+| Field | Type | Constraints |
 |---|---|---|
-| `fullName` | String | Required |
+| `firstName` | String | Required · min: 2 · max: 20 |
+| `lastName` | String | Required · min: 2 · max: 20 |
+| `fullName` | Virtual | `get` → `firstName lastName` · `set` → splits into first/last |
 | `email` | String | Required · Unique |
-| `password` | String | Stored as bcrypt hash |
-| `gender` | String | `male` / `female` |
+| `password` | String | Required · Stored as bcrypt hash |
+| `gender` | String | Enum: `male` / `female` · Default: `male` |
+| `role` | String | Enum: `user` / `admin` · Default: `user` |
 | `phone` | String | Stored AES-encrypted |
-| `role` | String | `user` / `admin` · Default: `user` |
+| `confirmEmail` | Date | Set on email verification |
+| `timestamps` | — | `createdAt` & `updatedAt` auto-managed |
+
+<details>
+<summary><strong>Click to see schema code</strong></summary>
+
+<br/>
+
+```javascript
+import mongoose from "mongoose";
+
+const genderEnum = ["male", "female"];
+const roleEnum = ["user", "admin"];
+
+const userSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: true,
+      minLength: [2, "first name must be at least 2 characters"],
+      maxLength: [20, "first name must be at most 20 characters"],
+    },
+    lastName: {
+      type: String,
+      required: true,
+      minLength: [2, "last name must be at least 2 characters"],
+      maxLength: [20, "last name must be at most 20 characters"],
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: [true, "email must be unique"],
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    gender: {
+      type: String,
+      enum: {
+        values: genderEnum,
+        message: `Gender allows only ${genderEnum[0]} or ${genderEnum[1]}`,
+      },
+      default: genderEnum[0],
+    },
+    role: {
+      type: String,
+      enum: {
+        values: roleEnum,
+        message: `Role allows only ${roleEnum[0]} or ${roleEnum[1]}`,
+      },
+      default: roleEnum[0],
+    },
+    phone: String,
+    confirmEmail: Date,
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+userSchema
+  .virtual("fullName")
+  .set(function (value) {
+    const [firstName, lastName] = value?.split(" ") || [];
+    this.set({ firstName, lastName });
+  })
+  .get(function () {
+    return `${this.firstName} ${this.lastName}`;
+  });
+
+const userModel = mongoose.models.User || mongoose.model("User", userSchema);
+export default userModel;
+userModel.syncIndexes();
+```
+
+</details>
 
 ---
 
