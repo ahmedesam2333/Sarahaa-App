@@ -284,7 +284,7 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 
 ### MongoDB Connection
 
-> Managed via `src/DB/connection.js` using Mongoose.
+> Managed via `src/DB/connection.db.js` using Mongoose.
 
 ---
 
@@ -447,7 +447,7 @@ SARAHAA-APP/
 │   │   ├── models/
 │   │   │   └── user.model.js          (fullName, email, password, gender, phone, role)
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
-│   │   └── connection.js
+│   │   └── connection.db.js
 │   ├── middleware/
 │   │   └── authentication.middleware.js
 │   └── utils/
