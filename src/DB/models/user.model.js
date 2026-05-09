@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const genderEnum = ["male", "female"];
 const roleEnum = ["user", "admin"];
+export const providerEnum = ["system", "google"];
 
 const userSchema = new mongoose.Schema(
   {
@@ -24,7 +25,15 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return this.provider === providerEnum[0] ? true : false;
+      },
+    },
+    phone: {
+      type: String,
+      required: function () {
+        return this.provider === providerEnum[0] ? true : false;
+      },
     },
     gender: {
       type: String,
@@ -42,7 +51,15 @@ const userSchema = new mongoose.Schema(
       },
       default: roleEnum[0],
     },
-    phone: String,
+    provider: {
+      type: String,
+      enum: {
+        values: providerEnum,
+        message: `Provider allows only ${providerEnum[0]} or ${providerEnum[1]}`,
+      },
+      default: providerEnum[0],
+    },
+    picture: String,
     confirmEmail: Date,
   },
   {
