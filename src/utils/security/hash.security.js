@@ -8,10 +8,7 @@ export const generateHash = async ({
   return hash;
 };
 
-export const compareHash = async ({
-  plainText = "",
-  hashedPassword = "",
-} = {}) => {
-  const match = bcrypt.compareSync(plainText, hashedPassword);
+export const compareHash = async ({ plainText = "", hashed = "" } = {}) => {
+  const match = bcrypt.compareSync(plainText, hashed);
   return match;
 };

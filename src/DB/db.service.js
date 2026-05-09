@@ -29,5 +29,7 @@ export const findByIdAndUpdate = async ({
   id,
   updatedData = {},
 } = {}) => {
-  return await model.findByIdAndUpdate(id, updatedData, { after: true });
+  return await model.findByIdAndUpdate(id, updatedData, {
+    returnDocument: "after",
+  });
 };
