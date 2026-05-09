@@ -351,7 +351,7 @@ export async function sendEmail({
 }
 ```
 
-**`src/utils/email/email.event.js`**
+**`src/utils/events/email.event.js`**
 ```javascript
 import { EventEmitter } from "node:events";
 import { sendEmail } from "../email/send.email.js";
