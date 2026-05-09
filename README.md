@@ -7,6 +7,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -261,6 +262,59 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 
 </details>
 
+- [x] CORS — configured to allow specific origins (`cors`)
+- [x] Google OAuth — unified `signupOrLoginWithGmail` method using `google-auth-library`
+
+<details>
+<summary><strong>🔗 Google OAuth — signupOrLoginWithGmail</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+```javascript
+async function verifyGoogle({ idToken } = {}) {
+  const client = new OAuth2Client();
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: process.env.WEB_CLIENT_IDS.split(","),
+  });
+  const payload = ticket.getPayload();
+  return payload;
+}
+
+export const signupOrLoginWithGmail = asyncHandler(async (req, res, next) => {
+  const { idToken } = req.body;
+  const { name, email, picture, email_verified } = await verifyGoogle({ idToken });
+
+  if (!email_verified) {
+    return next(new Error("Email Not Verified", { cause: 401 }));
+  }
+
+  const user = await DBService.findOne({ model: userModel, filter: { email } });
+
+  if (user) {
+    if (user.provider === providerEnum[1]) {
+      const credentials = await generateLoginCredentials({ user });
+      return successResponse({ res, status: 200, data: credentials });
+    }
+    return next(new Error("Email Exist", { cause: 409 }));
+  }
+
+  const newUser = await DBService.create({
+    model: userModel,
+    data: [{ fullName: name, email, confirmEmail: Date.now(), picture, provider: providerEnum[1] }],
+  });
+  const credentials = await generateLoginCredentials({ user: newUser });
+  return successResponse({
+    res,
+    message: "User created successfully",
+    status: 201,
+    data: credentials,
+  });
+});
+```
+
+</details>
+
 ---
 
 ### 🔜 In Progress / Upcoming
@@ -268,7 +322,6 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 - [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
-- [ ] CORS configuration
 - [ ] Joi request validation on all routes
 - [ ] Multer file upload handling
 - [ ] Anonymous message sending (no auth required)
@@ -284,7 +337,7 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 
 ### MongoDB Connection
 
-> Managed via `src/DB/connection.db.js` using Mongoose.
+> Managed via `src/DB/connection.js` using Mongoose.
 
 ---
 
@@ -296,10 +349,12 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
 | `lastName` | String | Required · min: 2 · max: 20 |
 | `fullName` | Virtual | `get` → `firstName lastName` · `set` → splits into first/last |
 | `email` | String | Required · Unique |
-| `password` | String | Required · Stored as bcrypt hash |
+| `password` | String | Required only if `provider === "system"` · Stored as bcrypt hash |
+| `phone` | String | Required only if `provider === "system"` · Stored AES-encrypted |
 | `gender` | String | Enum: `male` / `female` · Default: `male` |
 | `role` | String | Enum: `user` / `admin` · Default: `user` |
-| `phone` | String | Stored AES-encrypted |
+| `provider` | String | Enum: `system` / `google` · Default: `system` |
+| `picture` | String | Profile picture URL (set on Google OAuth) |
 | `confirmEmail` | Date | Set on email verification |
 | `timestamps` | — | `createdAt` & `updatedAt` auto-managed |
 
@@ -313,6 +368,7 @@ import mongoose from "mongoose";
 
 const genderEnum = ["male", "female"];
 const roleEnum = ["user", "admin"];
+export const providerEnum = ["system", "google"];
 
 const userSchema = new mongoose.Schema(
   {
@@ -335,7 +391,15 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return this.provider === providerEnum[0] ? true : false;
+      },
+    },
+    phone: {
+      type: String,
+      required: function () {
+        return this.provider === providerEnum[0] ? true : false;
+      },
     },
     gender: {
       type: String,
@@ -353,7 +417,15 @@ const userSchema = new mongoose.Schema(
       },
       default: roleEnum[0],
     },
-    phone: String,
+    provider: {
+      type: String,
+      enum: {
+        values: providerEnum,
+        message: `Provider allows only ${providerEnum[0]} or ${providerEnum[1]}`,
+      },
+      default: providerEnum[0],
+    },
+    picture: String,
     confirmEmail: Date,
   },
   {
@@ -447,7 +519,7 @@ SARAHAA-APP/
 │   │   ├── models/
 │   │   │   └── user.model.js          (fullName, email, password, gender, phone, role)
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
-│   │   └── connection.db.js
+│   │   └── connection.js
 │   ├── middleware/
 │   │   └── authentication.middleware.js
 │   └── utils/
