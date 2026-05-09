@@ -7,7 +7,6 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -100,8 +99,8 @@ export const generateHash = async ({ plainText = "", salt = 12 }) => {
   return hash;
 };
 
-export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
-  const match = bcrypt.compareSync(plainText, hashedPassword);
+export const compareHash = async ({ plainText = "", hashed = "" }) => {
+  const match = bcrypt.compareSync(plainText, hashed);
   return match;
 };
 ```
@@ -315,11 +314,71 @@ export const signupOrLoginWithGmail = asyncHandler(async (req, res, next) => {
 
 </details>
 
+- [x] OTP Email Verification — `nodemailer` transporter + `EventEmitter`-based email event system
+
+<details>
+<summary><strong>📧 Email Service + Event System</strong> — <em>Click to see implementation</em></summary>
+
+<br/>
+
+**`src/utils/email/send.email.js`**
+```javascript
+import nodemailer from "nodemailer";
+
+export async function sendEmail({
+  from = process.env.APP_EMAIL,
+  to = "",
+  cc = "",
+  bcc = "",
+  subject = "Sarahaa App",
+  text = "",
+  html = "",
+  attachments = [],
+} = {}) {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.APP_EMAIL,
+      pass: process.env.APP_PASSWORD,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"Sarahaa App" <${from}>`,
+    to, cc, bcc, subject, text, html, attachments,
+  });
+}
+```
+
+**`src/utils/email/email.event.js`**
+```javascript
+import { EventEmitter } from "node:events";
+import { sendEmail } from "../email/send.email.js";
+import { confirmEmailTemplate } from "../email/templates/ConfirmEmail.template.js";
+
+export const emailEvent = new EventEmitter();
+
+emailEvent.on("confirmEmail", async (data = {}) => {
+  await sendEmail({
+    to: data.to,
+    subject: data.subject || "Confirm-Email",
+    html: confirmEmailTemplate({ otp: data.otp }),
+  }).catch((error) => {
+    console.log("Fail to send the email", error);
+  });
+});
+```
+
+**Email Preview:**
+
+![Confirm Email Template](https://drive.google.com/uc?export=view&id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f)
+
+</details>
+
 ---
 
 ### 🔜 In Progress / Upcoming
 
-- [ ] OTP email verification (`nodemailer`)
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
 - [ ] Joi request validation on all routes
@@ -355,7 +414,9 @@ export const signupOrLoginWithGmail = asyncHandler(async (req, res, next) => {
 | `role` | String | Enum: `user` / `admin` · Default: `user` |
 | `provider` | String | Enum: `system` / `google` · Default: `system` |
 | `picture` | String | Profile picture URL (set on Google OAuth) |
-| `confirmEmail` | Date | Set on email verification |
+| `confirmEmail` | Date | Set when email is verified · absent = unverified |
+| `confirmEmailOtp` | String | Hashed OTP · temporary · removed with `$unset` after verification |
+| `otpDate` | Date | OTP generation timestamp · used for 2-min expiry check |
 | `timestamps` | — | `createdAt` & `updatedAt` auto-managed |
 
 <details>
@@ -427,6 +488,8 @@ const userSchema = new mongoose.Schema(
     },
     picture: String,
     confirmEmail: Date,
+    confirmEmailOtp: String,
+    otpDate: Date,
   },
   {
     timestamps: true,
@@ -495,7 +558,7 @@ export const findByIdAndUpdate = async ({
   id,
   updatedData = {},
 } = {}) => {
-  return await model.findByIdAndUpdate(id, updatedData, { after: true });
+  return await model.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' });
 };
 ```
 
@@ -524,6 +587,11 @@ SARAHAA-APP/
 │   │   └── authentication.middleware.js
 │   └── utils/
 │       ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
+│       ├── email/
+│       │   ├── send.email.js          (nodemailer transporter)
+│       │   ├── email.event.js         (EventEmitter — confirmEmail event)
+│       │   └── templates/
+│       │       └── ConfirmEmail.template.js
 │       └── security/
 │           ├── hash.security.js       (bcrypt generateHash + compareHash)
 │           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
@@ -558,6 +626,10 @@ const router = express.Router();
 
 router.post("/signup", authController.signup);
 router.post("/login", authController.login);
+router.post("/gmail", authController.signupOrLoginWithGmail);
+router.patch("/confirm-email", authController.confirmEmail);
+router.patch("/resend-otp", authController.resendOtp);
+
 export default router;
 ```
 
@@ -577,25 +649,19 @@ export default router;
   "email": "a1@example.com",
   "password": "1234",
   "gender": "male",
-  "phone": "01234567891"
+  "phone": "01234567891",
+  "role": "user"
 }
 ```
 
 **Response `201` — Success:**
 ```json
 {
-  "message": "User created successfully",
-  "data": {
-    "user": {
-      "_id": "...",
-      "fullName": "Ahmed Essam",
-      "email": "a1@example.com",
-      "gender": "male",
-      "phone": "<encrypted>"
-    }
-  }
+  "message": "User created successfully and Please check your email to verify"
 }
 ```
+
+> 📧 An OTP is generated, hashed, stored in the DB, and emitted via `emailEvent` — no tokens returned until email is confirmed.
 
 **Response `409` — Email already exists:**
 ```json
@@ -607,17 +673,24 @@ export default router;
 
 ```javascript
 export const signup = asyncHandler(async (req, res, next) => {
-  const { fullName, email, password, gender, phone } = req.body;
+  const { fullName, email, password, gender, phone, role } = req.body;
   if (await DBService.findOne({ model: userModel, filter: { email } })) {
     return next(new Error("Email already exists", { cause: 409 }));
   }
   const hashedPassword = await generateHash({ plainText: password });
   const encPhone = await genEncrypt({ plainText: phone });
+  const otp = customAlphabet("0123456789", 6)();
+  const confirmEmailOtp = await generateHash({ plainText: otp });
   const user = await DBService.create({
     model: userModel,
-    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone }],
+    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, role, confirmEmailOtp, otpDate: Date.now() }],
   });
-  return successResponse({ res, message: "User created successfully", status: 201, data: { user } });
+  emailEvent.emit("confirmEmail", { to: email, otp });
+  return successResponse({
+    res,
+    message: "User created successfully and Please check your email to verify",
+    status: 201,
+  });
 });
 ```
 
@@ -653,6 +726,11 @@ export const signup = asyncHandler(async (req, res, next) => {
 
 > 🔑 Tokens are signed with **Bearer** keys for regular users and **Admin** keys for admins, via `generateLoginCredentials`.
 
+**Response `401` — Email not verified:**
+```json
+{ "err_message": "Please verify your account" }
+```
+
 **Response `404` — Invalid email or password:**
 ```json
 { "err_message": "Invalid email or password" }
@@ -664,9 +742,10 @@ export const signup = asyncHandler(async (req, res, next) => {
 ```javascript
 export const login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-  const user = await DBService.findOne({ model: userModel, filter: { email } });
+  const user = await DBService.findOne({ model: userModel, filter: { email, provider: providerEnum[0] } });
   if (!user) return next(new Error("Invalid email or password", { cause: 404 }));
-  const match = await compareHash({ plainText: password, hashedPassword: user.password });
+  if (!user.confirmEmail) return next(new Error("Please verify your account", { cause: 401 }));
+  const match = await compareHash({ plainText: password, hashed: user.password });
   if (!match) return next(new Error("Invalid email or password", { cause: 404 }));
   const credentials = await generateLoginCredentials({ user });
   return successResponse({
@@ -685,22 +764,176 @@ export const login = asyncHandler(async (req, res, next) => {
 ---
 
 <details>
-<summary><code>POST</code> &nbsp; <strong>/auth/verify-otp</strong> — Verify email with OTP &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>POST</code> &nbsp; <strong>/auth/gmail</strong> — Signup or Login with Google</summary>
 
 <br/>
 
-> ⬜ *Add request body, success response, and error cases when implemented*
+**Request Body:**
+```json
+{ "idToken": "<google_id_token>" }
+```
+
+**Response `201` — New user created:**
+```json
+{
+  "message": "User created successfully",
+  "data": { "access_token": "...", "refresh_token": "..." }
+}
+```
+
+**Response `200` — Existing Google user logged in:**
+```json
+{
+  "message": "Done",
+  "data": { "access_token": "...", "refresh_token": "..." }
+}
+```
+
+**Response `401` — Google email not verified:**
+```json
+{ "err_message": "Email Not Verified" }
+```
+
+**Response `409` — Email exists with system provider:**
+```json
+{ "err_message": "Email Exist" }
+```
 
 </details>
 
 ---
 
 <details>
-<summary><code>POST</code> &nbsp; <strong>/auth/resend-otp</strong> — Resend OTP to email &nbsp; ⬜ <em>Not yet implemented</em></summary>
+<summary><code>PATCH</code> &nbsp; <strong>/auth/confirm-email</strong> — Verify email with OTP</summary>
 
 <br/>
 
-> ⬜ *Add details when implemented*
+**Request Body:**
+```json
+{ "email": "a1@example.com", "otp": "123456" }
+```
+
+**Response `200` — Success:**
+```json
+{
+  "message": "Email Verified Successfully",
+  "data": { "_id": "...", "email": "a1@example.com", "confirmEmail": "..." }
+}
+```
+
+**Response `404` — Email invalid or already confirmed:**
+```json
+{ "err_message": "Invalid Email or Has Been Confirmed Before" }
+```
+
+**Response `400` — Wrong OTP:**
+```json
+{ "err_message": "Invalid OTP" }
+```
+
+**Response `400` — OTP expired:**
+```json
+{ "err_message": "OTP has expired, please request a new one" }
+```
+
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const confirmEmail = asyncHandler(async (req, res, next) => {
+  const { email, otp } = req.body;
+  const user = await DBService.findOne({
+    model: userModel,
+    filter: {
+      email,
+      confirmEmail: { $exists: false },
+      confirmEmailOtp: { $exists: true },
+      otpDate: { $exists: true },
+    },
+  });
+  if (!user) return next(new Error("Invalid Email or Has Been Confirmed Before", { cause: 404 }));
+  const matchOtp = await compareHash({ plainText: otp, hashed: user.confirmEmailOtp });
+  if (!matchOtp) return next(new Error("Invalid OTP"));
+  const otpAge = Date.now() - new Date(user.otpDate).getTime();
+  if (otpAge > 60000 * 2) return next(new Error("OTP has expired, please request a new one"));
+  const newUser = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: user._id,
+    updatedData: {
+      confirmEmail: Date.now(),
+      $unset: { confirmEmailOtp: true, otpDate: true },
+      $inc: { __v: 1 },
+    },
+  });
+  return successResponse({ res, message: "Email Verified Successfully", data: newUser });
+});
+```
+
+</details>
+
+</details>
+
+---
+
+<details>
+<summary><code>PATCH</code> &nbsp; <strong>/auth/resend-otp</strong> — Resend OTP to email</summary>
+
+<br/>
+
+**Request Body:**
+```json
+{ "email": "a1@example.com" }
+```
+
+**Response `200` — Success:**
+```json
+{ "message": "OTP resent successfully check your email" }
+```
+
+**Response `404` — Email invalid or already confirmed:**
+```json
+{ "err_message": "Invalid Email or Already Confirmed" }
+```
+
+**Response `400` — Too soon to resend:**
+```json
+{ "err_message": "Please wait 2 mins before resending." }
+```
+
+<details>
+<summary><em>Controller code</em></summary>
+
+```javascript
+export const resendOtp = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  const user = await DBService.findOne({
+    model: userModel,
+    filter: {
+      email,
+      confirmEmail: { $exists: false },
+      confirmEmailOtp: { $exists: true },
+      otpDate: { $exists: true },
+    },
+  });
+  if (!user) return next(new Error("Invalid Email or Already Confirmed", { cause: 404 }));
+  const otpAge = Date.now() - new Date(user.otpDate).getTime();
+  if (otpAge < 60000 * 2) {
+    const waitSecs = Math.ceil((60000 * 2 - otpAge) / 1000);
+    return next(new Error(`Please wait ${Math.ceil(waitSecs / 60)} mins before resending.`));
+  }
+  const otp = customAlphabet("0123456789", 6)();
+  const confirmEmailOtp = await generateHash({ plainText: otp });
+  await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: user._id,
+    updatedData: { confirmEmailOtp, otpDate: Date.now() },
+  });
+  emailEvent.emit("confirmEmail", { to: email, otp });
+  return successResponse({ res, message: "OTP resent successfully check your email" });
+});
+```
+
+</details>
 
 </details>
 
