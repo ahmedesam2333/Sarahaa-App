@@ -7,6 +7,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -99,8 +100,8 @@ export const generateHash = async ({ plainText = "", salt = 12 }) => {
   return hash;
 };
 
-export const compareHash = async ({ plainText = "", hashed = "" }) => {
-  const match = bcrypt.compareSync(plainText, hashed);
+export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
+  const match = bcrypt.compareSync(plainText, hashedPassword);
   return match;
 };
 ```
@@ -558,7 +559,7 @@ export const findByIdAndUpdate = async ({
   id,
   updatedData = {},
 } = {}) => {
-  return await model.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' });
+  return await model.findByIdAndUpdate(id, updatedData, { after: true });
 };
 ```
 
@@ -589,12 +590,14 @@ SARAHAA-APP/
 │       ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
 │       ├── email/
 │       │   ├── send.email.js          (nodemailer transporter)
-│       │   ├── email.event.js         (EventEmitter — confirmEmail event)
 │       │   └── templates/
 │       │       └── ConfirmEmail.template.js
+│       ├── events/
+│       │   └── email.event.js         (EventEmitter — confirmEmail event)
 │       └── security/
 │           ├── hash.security.js       (bcrypt generateHash + compareHash)
 │           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
+│           ├── otp.security.js        (generateOtp + checkOtpAge)
 │           └── token.security.js      (JWT gen/verify tokens + decodeToken + generateLoginCredentials + role-aware signatures)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
@@ -679,8 +682,7 @@ export const signup = asyncHandler(async (req, res, next) => {
   }
   const hashedPassword = await generateHash({ plainText: password });
   const encPhone = await genEncrypt({ plainText: phone });
-  const otp = customAlphabet("0123456789", 6)();
-  const confirmEmailOtp = await generateHash({ plainText: otp });
+  const { otp, hashedOtp: confirmEmailOtp } = await generateOtp();
   const user = await DBService.create({
     model: userModel,
     data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, role, confirmEmailOtp, otpDate: Date.now() }],
@@ -854,8 +856,9 @@ export const confirmEmail = asyncHandler(async (req, res, next) => {
   if (!user) return next(new Error("Invalid Email or Has Been Confirmed Before", { cause: 404 }));
   const matchOtp = await compareHash({ plainText: otp, hashed: user.confirmEmailOtp });
   if (!matchOtp) return next(new Error("Invalid OTP"));
-  const otpAge = Date.now() - new Date(user.otpDate).getTime();
-  if (otpAge > 60000 * 2) return next(new Error("OTP has expired, please request a new one"));
+  if (await checkOtpAge({ caller: "confirmEmail", user })) {
+    return next(new Error("OTP has expired, please request a new one"));
+  }
   const newUser = await DBService.findByIdAndUpdate({
     model: userModel,
     id: user._id,
@@ -916,17 +919,14 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
     },
   });
   if (!user) return next(new Error("Invalid Email or Already Confirmed", { cause: 404 }));
-  const otpAge = Date.now() - new Date(user.otpDate).getTime();
-  if (otpAge < 60000 * 2) {
-    const waitSecs = Math.ceil((60000 * 2 - otpAge) / 1000);
-    return next(new Error(`Please wait ${Math.ceil(waitSecs / 60)} mins before resending.`));
-  }
-  const otp = customAlphabet("0123456789", 6)();
-  const confirmEmailOtp = await generateHash({ plainText: otp });
+  const now = Date.now();
+  const waitSecs = await checkOtpAge({ caller: "resend", user });
+  if (waitSecs) return next(new Error(`Please wait ${Math.ceil(waitSecs / 60)} mins before resending.`));
+  const { otp, hashedOtp: confirmEmailOtp } = await generateOtp();
   await DBService.findByIdAndUpdate({
     model: userModel,
     id: user._id,
-    updatedData: { confirmEmailOtp, otpDate: Date.now() },
+    updatedData: { confirmEmailOtp, otpDate: now },
   });
   emailEvent.emit("confirmEmail", { to: email, otp });
   return successResponse({ res, message: "OTP resent successfully check your email" });
@@ -934,28 +934,6 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
 ```
 
 </details>
-
-</details>
-
----
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/forgot-password</strong> — Send password reset email &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/reset-password</strong> — Reset password using token &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
 
 </details>
 
@@ -1099,29 +1077,6 @@ export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
 ```
 
 </details>
-
-</details>
-
----
-
-<details>
-<summary><code>PUT</code> &nbsp; <strong>/user</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>GET</code> &nbsp; <strong>/user/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Used to display the user's anonymous link page*  
-> ⬜ *Add details when implemented*
 
 </details>
 
