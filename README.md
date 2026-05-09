@@ -100,8 +100,8 @@ export const generateHash = async ({ plainText = "", salt = 12 }) => {
   return hash;
 };
 
-export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
-  const match = bcrypt.compareSync(plainText, hashedPassword);
+export const compareHash = async ({ plainText = "", hashed = "" }) => {
+  const match = bcrypt.compareSync(plainText, hashed);
   return match;
 };
 ```
@@ -495,7 +495,9 @@ export const findByIdAndUpdate = async ({
   id,
   updatedData = {},
 } = {}) => {
-  return await model.findByIdAndUpdate(id, updatedData, { after: true });
+  return await model.findByIdAndUpdate(id, updatedData, {
+    returnDocument: "after",
+  });
 };
 ```
 
