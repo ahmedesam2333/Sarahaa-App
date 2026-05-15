@@ -7,6 +7,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -21,6 +22,7 @@
 
 - [Overview](#-overview)
 - [Features](#-features)
+- [Implementation Details](#-implementation-details)
 - [Database Structure](#-database-structure)
 - [Project Structure](#%EF%B8%8F-project-structure)
 - [API Documentation](#-api-documentation)
@@ -45,14 +47,41 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 ### ✔️ Completed
 
 - [x] Folder structure & project setup
-- [x] Sign Up & Login endpoints
+- [x] Sign Up, Login & Google OAuth endpoints
 - [x] Async error handler utility (`asyncHandler`)
 - [x] Global error handling middleware
 - [x] Uniform success/error API response structure (`response.js`)
 - [x] Environment variables setup (`dotenv`)
+- [x] Hashing — `bcrypt` password hashing & comparison (`hash.security.js`)
+- [x] Encryption — AES symmetric encryption on sensitive fields (`encrypt.security.js`)
+- [x] OTP generation via `nanoid` + `customAlphabet` with 2-min expiry logic (`otp.security.js`)
+- [x] JWT — Role-aware access & refresh token system with Bearer/Admin signature levels (`token.security.js`)
+- [x] Auth middleware — `authentication`, `authorization`, and combined `auth` middleware (`auth.middleware.js`)
+- [x] CORS — configured to allow specific origins
+- [x] Google OAuth — unified `signupOrLoginWithGmail` using `google-auth-library`
+- [x] OTP Email Verification — `nodemailer` transporter + `EventEmitter`-based email event system
+
+---
+
+### 🔜 In Progress / Upcoming
+
+- [ ] Rate limiting per IP (`express-rate-limit`)
+- [ ] Helmet security headers
+- [ ] Joi request validation on all routes
+- [ ] Multer file upload handling
+- [ ] Anonymous message sending (no auth required)
+- [ ] Message inbox — view, delete, reply
+- [ ] Public profile page per user
+- [ ] Block/report a message
+- [ ] Pagination for message inbox
+- [ ] Admin dashboard (future)
+
+---
+
+## 🔧 Implementation Details
 
 <details>
-<summary><strong>🛠️ asyncHandler + successResponse + globalErrorHandling</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>🛠️ asyncHandler + successResponse + globalErrorHandling</strong></summary>
 
 <br/>
 
@@ -84,10 +113,8 @@ export const globalErrorHandling = (error, req, res, next) => {
 
 </details>
 
-- [x] Hashing — `bcrypt` implementation for passwords (`src/utils/security/hash.security.js`)
-
 <details>
-<summary><strong>🔒 Hashing — bcrypt</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>🔒 Hashing — bcrypt</strong></summary>
 
 <br/>
 
@@ -99,18 +126,16 @@ export const generateHash = async ({ plainText = "", salt = 12 }) => {
   return hash;
 };
 
-export const compareHash = async ({ plainText = "", hashed = "" }) => {
-  const match = bcrypt.compareSync(plainText, hashed);
+export const compareHash = async ({ plainText = "", hashedPassword = "" }) => {
+  const match = bcrypt.compareSync(plainText, hashedPassword);
   return match;
 };
 ```
 
 </details>
 
-- [x] Encryption — AES symmetric encryption on sensitive fields (`src/utils/security/encrypt.security.js`)
-
 <details>
-<summary><strong>🔐 Encryption — AES (crypto-js)</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>🔐 Encryption — AES (crypto-js)</strong></summary>
 
 <br/>
 
@@ -136,10 +161,41 @@ export const genDecrypt = async ({
 
 </details>
 
-- [x] JWT — Role-aware token system with Bearer/Admin signature levels, `decodeToken`, and `generateLoginCredentials` (`src/utils/security/token.security.js`)
+<details>
+<summary><strong>🔢 OTP — nanoid + expiry logic</strong></summary>
+
+<br/>
+
+```javascript
+import { customAlphabet } from "nanoid";
+import { generateHash } from "../../utils/security/hash.security.js";
+
+export const generateOtp = async () => {
+  const otp = customAlphabet("0123456789", 6)();
+  const hashedOtp = await generateHash({ plainText: otp });
+  return { otp, hashedOtp };
+};
+
+export const checkOtpAge = async ({ caller = "", user } = {}) => {
+  const otpAge = Date.now() - new Date(user.otpDate).getTime();
+  switch (caller) {
+    case "confirmEmail":
+      if (otpAge > 60000 * 2) return true;
+      break;
+    default:
+      if (otpAge < 60000 * 2) {
+        const waitSecs = Math.ceil((60000 * 2 - otpAge) / 1000);
+        return waitSecs;
+      }
+      break;
+  }
+};
+```
+
+</details>
 
 <details>
-<summary><strong>🪙 JWT Tokens</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>🪙 JWT Tokens</strong></summary>
 
 <br/>
 
@@ -233,10 +289,8 @@ export const generateLoginCredentials = async ({ user } = {}) => {
 
 </details>
 
-- [x] Authentication middleware — decodes Bearer/Admin token, attaches user to `req.user`, supports access & refresh token types (`src/middleware/authentication.middleware.js`)
-
 <details>
-<summary><strong>🛡️ Authentication Middleware</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>🛡️ Auth Middleware — authentication + authorization + auth</strong></summary>
 
 <br/>
 
@@ -257,15 +311,36 @@ export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
     return next();
   });
 };
+
+export const authorization = ({ accessRoles = [] } = {}) => {
+  return asyncHandler(async (req, res, next) => {
+    if (!accessRoles.includes(req.user?.role))
+      return next(new Error("Unauthorized Account", { cause: 403 }));
+    return next();
+  });
+};
+
+export const auth = ({
+  tokenType = tokenTypeEnum.access,
+  accessRoles = [],
+} = {}) => {
+  return asyncHandler(async (req, res, next) => {
+    req.user = await decodeToken({
+      next,
+      authorization: req.headers?.authorization,
+      tokenType,
+    });
+    if (!accessRoles.includes(req.user?.role))
+      return next(new Error("Unauthorized Account", { cause: 403 }));
+    return next();
+  });
+};
 ```
 
 </details>
 
-- [x] CORS — configured to allow specific origins (`cors`)
-- [x] Google OAuth — unified `signupOrLoginWithGmail` method using `google-auth-library`
-
 <details>
-<summary><strong>🔗 Google OAuth — signupOrLoginWithGmail</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>🔗 Google OAuth — signupOrLoginWithGmail</strong></summary>
 
 <br/>
 
@@ -283,13 +358,8 @@ async function verifyGoogle({ idToken } = {}) {
 export const signupOrLoginWithGmail = asyncHandler(async (req, res, next) => {
   const { idToken } = req.body;
   const { name, email, picture, email_verified } = await verifyGoogle({ idToken });
-
-  if (!email_verified) {
-    return next(new Error("Email Not Verified", { cause: 401 }));
-  }
-
+  if (!email_verified) return next(new Error("Email Not Verified", { cause: 401 }));
   const user = await DBService.findOne({ model: userModel, filter: { email } });
-
   if (user) {
     if (user.provider === providerEnum[1]) {
       const credentials = await generateLoginCredentials({ user });
@@ -297,27 +367,19 @@ export const signupOrLoginWithGmail = asyncHandler(async (req, res, next) => {
     }
     return next(new Error("Email Exist", { cause: 409 }));
   }
-
   const newUser = await DBService.create({
     model: userModel,
     data: [{ fullName: name, email, confirmEmail: Date.now(), picture, provider: providerEnum[1] }],
   });
   const credentials = await generateLoginCredentials({ user: newUser });
-  return successResponse({
-    res,
-    message: "User created successfully",
-    status: 201,
-    data: credentials,
-  });
+  return successResponse({ res, message: "User created successfully", status: 201, data: credentials });
 });
 ```
 
 </details>
 
-- [x] OTP Email Verification — `nodemailer` transporter + `EventEmitter`-based email event system
-
 <details>
-<summary><strong>📧 Email Service + Event System</strong> — <em>Click to see implementation</em></summary>
+<summary><strong>📧 Email Service + Event System</strong></summary>
 
 <br/>
 
@@ -342,7 +404,6 @@ export async function sendEmail({
       pass: process.env.APP_PASSWORD,
     },
   });
-
   await transporter.sendMail({
     from: `"Sarahaa App" <${from}>`,
     to, cc, bcc, subject, text, html, attachments,
@@ -350,7 +411,7 @@ export async function sendEmail({
 }
 ```
 
-**`src/utils/email/email.event.js`**
+**`src/utils/events/email.event.js`**
 ```javascript
 import { EventEmitter } from "node:events";
 import { sendEmail } from "../email/send.email.js";
@@ -374,21 +435,6 @@ emailEvent.on("confirmEmail", async (data = {}) => {
 ![Confirm Email Template](https://drive.google.com/uc?export=view&id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f)
 
 </details>
-
----
-
-### 🔜 In Progress / Upcoming
-
-- [ ] Rate limiting per IP (`express-rate-limit`)
-- [ ] Helmet security headers
-- [ ] Joi request validation on all routes
-- [ ] Multer file upload handling
-- [ ] Anonymous message sending (no auth required)
-- [ ] Message inbox — view, delete, reply
-- [ ] Public profile page per user
-- [ ] Block/report a message
-- [ ] Pagination for message inbox
-- [ ] Admin dashboard (future)
 
 ---
 
@@ -558,7 +604,7 @@ export const findByIdAndUpdate = async ({
   id,
   updatedData = {},
 } = {}) => {
-  return await model.findByIdAndUpdate(id, updatedData, { returnDocument: 'after' });
+  return await model.findByIdAndUpdate(id, updatedData, { returnDocument: "after" });
 };
 ```
 
@@ -577,25 +623,28 @@ SARAHAA-APP/
 │   │   │   └── auth.routes.js
 │   │   └── user/
 │   │       ├── user.controller.js
-│   │       └── user.routes.js
+│   │       ├── user.routes.js
+│   │       └── user.authorization.js  (user-level role access lists)
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js          (fullName, email, password, gender, phone, role)
+│   │   │   └── user.model.js          (firstName, lastName, email, password, phone, gender, role, provider, picture, otp fields)
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
 │   ├── middleware/
-│   │   └── authentication.middleware.js
+│   │   └── auth.middleware.js         (authentication + authorization + auth)
 │   └── utils/
 │       ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
 │       ├── email/
 │       │   ├── send.email.js          (nodemailer transporter)
-│       │   ├── email.event.js         (EventEmitter — confirmEmail event)
 │       │   └── templates/
 │       │       └── ConfirmEmail.template.js
+│       ├── events/
+│       │   └── email.event.js         (EventEmitter — confirmEmail event)
 │       └── security/
 │           ├── hash.security.js       (bcrypt generateHash + compareHash)
 │           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
-│           └── token.security.js      (JWT gen/verify tokens + decodeToken + generateLoginCredentials + role-aware signatures)
+│           ├── otp.security.js        (nanoid generateOtp + checkOtpAge)
+│           └── token.security.js      (JWT gen/verify + decodeToken + generateLoginCredentials + role-aware signatures)
 │   ├── app.controller.js  (main app setup / route mounting)
 │   └── index.js           (entry point)
 ├── .gitignore
@@ -679,8 +728,7 @@ export const signup = asyncHandler(async (req, res, next) => {
   }
   const hashedPassword = await generateHash({ plainText: password });
   const encPhone = await genEncrypt({ plainText: phone });
-  const otp = customAlphabet("0123456789", 6)();
-  const confirmEmailOtp = await generateHash({ plainText: otp });
+  const { otp, hashedOtp: confirmEmailOtp } = await generateOtp();
   const user = await DBService.create({
     model: userModel,
     data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, role, confirmEmailOtp, otpDate: Date.now() }],
@@ -854,8 +902,9 @@ export const confirmEmail = asyncHandler(async (req, res, next) => {
   if (!user) return next(new Error("Invalid Email or Has Been Confirmed Before", { cause: 404 }));
   const matchOtp = await compareHash({ plainText: otp, hashed: user.confirmEmailOtp });
   if (!matchOtp) return next(new Error("Invalid OTP"));
-  const otpAge = Date.now() - new Date(user.otpDate).getTime();
-  if (otpAge > 60000 * 2) return next(new Error("OTP has expired, please request a new one"));
+  if (await checkOtpAge({ caller: "confirmEmail", user })) {
+    return next(new Error("OTP has expired, please request a new one"));
+  }
   const newUser = await DBService.findByIdAndUpdate({
     model: userModel,
     id: user._id,
@@ -916,17 +965,14 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
     },
   });
   if (!user) return next(new Error("Invalid Email or Already Confirmed", { cause: 404 }));
-  const otpAge = Date.now() - new Date(user.otpDate).getTime();
-  if (otpAge < 60000 * 2) {
-    const waitSecs = Math.ceil((60000 * 2 - otpAge) / 1000);
-    return next(new Error(`Please wait ${Math.ceil(waitSecs / 60)} mins before resending.`));
-  }
-  const otp = customAlphabet("0123456789", 6)();
-  const confirmEmailOtp = await generateHash({ plainText: otp });
+  const now = Date.now();
+  const waitSecs = await checkOtpAge({ caller: "resend", user });
+  if (waitSecs) return next(new Error(`Please wait ${Math.ceil(waitSecs / 60)} mins before resending.`));
+  const { otp, hashedOtp: confirmEmailOtp } = await generateOtp();
   await DBService.findByIdAndUpdate({
     model: userModel,
     id: user._id,
-    updatedData: { confirmEmailOtp, otpDate: Date.now() },
+    updatedData: { confirmEmailOtp, otpDate: now },
   });
   emailEvent.emit("confirmEmail", { to: email, otp });
   return successResponse({ res, message: "OTP resent successfully check your email" });
@@ -934,28 +980,6 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
 ```
 
 </details>
-
-</details>
-
----
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/forgot-password</strong> — Send password reset email &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/reset-password</strong> — Reset password using token &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
 
 </details>
 
@@ -971,11 +995,21 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
 ```javascript
 import express from "express";
 import * as userController from "./user.controller.js";
-import { authentication } from "../middleware/authentication.middleware.js";
-import { tokenTypeEnum } from "../utils/security/token.security.js";
+import {
+  authentication,
+  authorization,
+  auth,
+} from "../../middleware/auth.middleware.js";
+import { endpoint } from "./user.authorization.js";
+import { tokenTypeEnum } from "../../utils/security/token.security.js";
 const router = express.Router();
 
-router.get("/", authentication(), userController.getProfile);
+router.get(
+  "/",
+  auth({ accessRoles: endpoint.profile }),
+  userController.getProfile
+);
+
 router.get(
   "/refresh-token",
   authentication({ tokenType: tokenTypeEnum.refresh }),
@@ -1099,29 +1133,6 @@ export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
 ```
 
 </details>
-
-</details>
-
----
-
-<details>
-<summary><code>PUT</code> &nbsp; <strong>/user</strong> — Update profile (username, bio, avatar) &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Add details when implemented*
-
-</details>
-
----
-
-<details>
-<summary><code>GET</code> &nbsp; <strong>/user/:username</strong> — Get public profile by username &nbsp; ⬜ <em>Not yet implemented</em></summary>
-
-<br/>
-
-> ⬜ *Used to display the user's anonymous link page*  
-> ⬜ *Add details when implemented*
 
 </details>
 
