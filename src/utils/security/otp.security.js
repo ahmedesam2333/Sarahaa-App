@@ -1,5 +1,6 @@
 import { customAlphabet } from "nanoid";
 import { generateHash } from "../../utils/security/hash.security.js";
+
 export const generateOtp = async () => {
   const otp = customAlphabet("0123456789", 6)();
   const hashedOtp = await generateHash({ plainText: otp });
