@@ -811,13 +811,15 @@ export default router;
 ```json
 {
   "fullName": "Ahmed Essam",
-  "email": "a1@example.com",
-  "password": "1234",
+  "email": "ahmed@example.com",
+  "password": "Ahmed@1234",
   "gender": "male",
-  "phone": "01234567891",
+  "phone": "01012345678",
   "role": "user"
 }
 ```
+
+> 📋 **Validation rules:** `fullName` requires first + last name (2–20 chars each) · `email` valid TLD only (com, net, gov, edu, org, io) · `password` min 8 chars — must include uppercase, lowercase, number & special char (`@$!%*?&`) · `phone` Egyptian numbers only (010, 011, 012, 015) · `gender` enum: `male`/`female` · `role` enum: `user`/`admin` (both optional)
 
 **Response `201` — Success:**
 ```json
@@ -877,10 +879,12 @@ export const signup = asyncHandler(async (req, res, next) => {
 **Request Body:**
 ```json
 {
-  "email": "a1@example.com",
-  "password": "1234"
+  "email": "ahmed@example.com",
+  "password": "Ahmed@1234"
 }
 ```
+
+> 📋 **Validation rules:** `email` valid TLD only (com, net, gov, edu, org, io) · `password` min 8 chars — must include uppercase, lowercase, number & special char (`@$!%*?&`)
 
 **Response `200` — Success** *(message adapts based on role)*:
 ```json
