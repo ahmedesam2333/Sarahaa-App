@@ -60,6 +60,7 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 - [x] CORS — configured to allow specific origins
 - [x] Google OAuth — unified `signupOrLoginWithGmail` using `google-auth-library`
 - [x] OTP Email Verification — `nodemailer` transporter + `EventEmitter`-based email event system
+- [x] Joi request validation — centralized `validation` middleware + dedicated schemas per route (`validation.middleware.js`, `auth.validation.js`)
 
 ---
 
@@ -67,7 +68,6 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
-- [ ] Joi request validation on all routes
 - [ ] Multer file upload handling
 - [ ] Anonymous message sending (no auth required)
 - [ ] Message inbox — view, delete, reply
@@ -436,6 +436,117 @@ emailEvent.on("confirmEmail", async (data = {}) => {
 
 </details>
 
+<details>
+<summary><strong>✅ Validation Middleware</strong></summary>
+
+<br/>
+
+**`src/middleware/validation.middleware.js`**
+```javascript
+import { asyncHandler } from "../utils/response.js";
+
+export const validation = ({ schema } = {}) => {
+  return asyncHandler(async (req, res, next) => {
+    const validationError = [];
+    for (let key of Object.keys(schema)) {
+      const validationResult = schema[key].validate(req[key], {
+        abortEarly: false,
+      });
+      if (validationResult.error) {
+        validationError.push({ key, details: validationResult.error.details });
+      }
+    }
+    if (validationError.length) {
+      return res
+        .status(400)
+        .json({ err_message: "Validation Error", validationError });
+    }
+    return next();
+  });
+};
+```
+
+**`src/modules/auth/auth.validation.js`**
+```javascript
+import joi from "joi";
+import { Types } from "mongoose";
+
+const validateObjectId = (value, helper) => {
+  return Types.ObjectId.isValid(value) ? true : helper.message("Invalid ObjectId");
+};
+
+export const generalFields = {
+  fullName: joi.string().trim().min(5).max(41).custom((value, helpers) => {
+    const parts = value.split(/\s+/);
+    if (parts.length < 2) return helpers.message("fullName must contain at least first and last name separated by a space");
+    if (parts[0].length < 2 || parts[0].length > 20) return helpers.message("first name must be between 2 and 20 characters");
+    if (parts[1].length < 2 || parts[1].length > 20) return helpers.message("last name must be between 2 and 20 characters");
+    return value;
+  }),
+  email: joi.string().email({
+    minDomainSegments: 2,
+    maxDomainSegments: 3,
+    tlds: { allow: ["com", "net", "gov", "edu", "org", "io"] },
+  }).messages({ "string.email": "Please provide a valid email address" }),
+  password: joi.string().pattern(
+    new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$")
+  ).messages({
+    "string.pattern.base": "Password must be at least 8 characters, contain uppercase, lowercase, number and special character (@$!%*?&)"
+  }),
+  phone: joi.string().pattern(new RegExp("^01[0125][0-9]{8}$")).messages({
+    "string.pattern.base": "Phone must be a valid Egyptian mobile number (010, 011, 012, or 015)"
+  }),
+  gender: joi.string().valid("male", "female"),
+  role: joi.string().valid("user", "admin"),
+  provider: joi.string().valid("system", "google"),
+  otp: joi.string().length(6).pattern(/^[0-9]+$/).messages({
+    "string.pattern.base": "OTP must be exactly 6 digits",
+    "string.length": "OTP must be exactly 6 digits",
+  }),
+  idToken: joi.string(),
+  id: joi.string().custom(validateObjectId),
+};
+
+export const signup = {
+  body: joi.object().keys({
+    fullName: generalFields.fullName.required(),
+    email: generalFields.email.required(),
+    password: generalFields.password.required(),
+    phone: generalFields.phone.required(),
+    gender: generalFields.gender,
+    role: generalFields.role,
+  }).required().options({ allowUnknown: false }),
+};
+
+export const login = {
+  body: joi.object().keys({
+    email: generalFields.email.required(),
+    password: generalFields.password.required(),
+  }).required().options({ allowUnknown: false }),
+};
+
+export const confirmEmail = {
+  body: joi.object().keys({
+    email: generalFields.email.required(),
+    otp: generalFields.otp.required(),
+  }).required().options({ allowUnknown: false }),
+};
+
+export const resendOtp = {
+  body: joi.object().keys({
+    email: generalFields.email.required(),
+  }).required().options({ allowUnknown: false }),
+};
+
+export const signupOrLoginWithGmail = {
+  body: joi.object().keys({
+    idToken: generalFields.idToken.required(),
+  }).required().options({ allowUnknown: false }),
+};
+```
+
+</details>
+
 ---
 
 ## 🗃️ Database Structure
@@ -620,7 +731,8 @@ SARAHAA-APP/
 │   ├── modules/
 │   │   ├── auth/
 │   │   │   ├── auth.controller.js
-│   │   │   └── auth.routes.js
+│   │   │   ├── auth.routes.js
+│   │   │   └── auth.validation.js     (Joi schemas: signup, login, confirmEmail, resendOtp, gmail)
 │   │   └── user/
 │   │       ├── user.controller.js
 │   │       ├── user.routes.js
@@ -631,7 +743,8 @@ SARAHAA-APP/
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate)
 │   │   └── connection.js
 │   ├── middleware/
-│   │   └── auth.middleware.js         (authentication + authorization + auth)
+│   │   ├── auth.middleware.js         (authentication + authorization + auth)
+│   │   └── validation.middleware.js   (centralized Joi validation across all routes)
 │   └── utils/
 │       ├── response.js                (asyncHandler + success/error helpers + Global Error Handling)
 │       ├── email/
@@ -671,13 +784,16 @@ SARAHAA-APP/
 ```javascript
 import express from "express";
 import * as authController from "./auth.controller.js";
+import * as validators from "./auth.validation.js";
+import { validation } from "./../../middleware/validation.middleware.js";
+
 const router = express.Router();
 
-router.post("/signup", authController.signup);
-router.post("/login", authController.login);
-router.post("/gmail", authController.signupOrLoginWithGmail);
-router.patch("/confirm-email", authController.confirmEmail);
-router.patch("/resend-otp", authController.resendOtp);
+router.post("/signup", validation({ schema: validators.signup }), authController.signup);
+router.post("/login", validation({ schema: validators.login }), authController.login);
+router.post("/gmail", validation({ schema: validators.signupOrLoginWithGmail }), authController.signupOrLoginWithGmail);
+router.patch("/confirm-email", validation({ schema: validators.confirmEmail }), authController.confirmEmail);
+router.patch("/resend-otp", validation({ schema: validators.resendOtp }), authController.resendOtp);
 
 export default router;
 ```
@@ -715,6 +831,11 @@ export default router;
 **Response `409` — Email already exists:**
 ```json
 { "err_message": "Email already exists" }
+```
+
+**Response `400` — Validation error:**
+```json
+{ "err_message": "Validation Error", "validationError": [...] }
 ```
 
 <details>
@@ -784,6 +905,11 @@ export const signup = asyncHandler(async (req, res, next) => {
 { "err_message": "Invalid email or password" }
 ```
 
+**Response `400` — Validation error:**
+```json
+{ "err_message": "Validation Error", "validationError": [...] }
+```
+
 <details>
 <summary><em>Controller code</em></summary>
 
@@ -847,6 +973,11 @@ export const login = asyncHandler(async (req, res, next) => {
 { "err_message": "Email Exist" }
 ```
 
+**Response `400` — Validation error:**
+```json
+{ "err_message": "Validation Error", "validationError": [...] }
+```
+
 </details>
 
 ---
@@ -882,6 +1013,11 @@ export const login = asyncHandler(async (req, res, next) => {
 **Response `400` — OTP expired:**
 ```json
 { "err_message": "OTP has expired, please request a new one" }
+```
+
+**Response `400` — Validation error:**
+```json
+{ "err_message": "Validation Error", "validationError": [...] }
 ```
 
 <details>
@@ -949,6 +1085,11 @@ export const confirmEmail = asyncHandler(async (req, res, next) => {
 { "err_message": "Please wait 2 mins before resending." }
 ```
 
+**Response `400` — Validation error:**
+```json
+{ "err_message": "Validation Error", "validationError": [...] }
+```
+
 <details>
 <summary><em>Controller code</em></summary>
 
@@ -995,21 +1136,11 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
 ```javascript
 import express from "express";
 import * as userController from "./user.controller.js";
-import {
-  authentication,
-  authorization,
-  auth,
-} from "../../middleware/auth.middleware.js";
-import { endpoint } from "./user.authorization.js";
-import { tokenTypeEnum } from "../../utils/security/token.security.js";
+import { authentication } from "../middleware/auth.middleware.js";
+import { tokenTypeEnum } from "../utils/security/token.security.js";
 const router = express.Router();
 
-router.get(
-  "/",
-  auth({ accessRoles: endpoint.profile }),
-  userController.getProfile
-);
-
+router.get("/", authentication(), userController.getProfile);
 router.get(
   "/refresh-token",
   authentication({ tokenType: tokenTypeEnum.refresh }),
