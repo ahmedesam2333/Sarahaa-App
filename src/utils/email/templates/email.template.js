@@ -1,7 +1,4 @@
-export const confirmEmailTemplate = ({
-  otp,
-  title = "Confirm your email",
-} = {}) => {
+export const emailTemplate = ({ otp, title = "Confirm your email" } = {}) => {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
@@ -24,7 +21,7 @@ export const confirmEmailTemplate = ({
       <!-- body -->
       <tr><td style="padding:28px 32px;">
         <p style="margin:0 0 20px;font-size:14px;color:#9090b0;line-height:1.6;">
-          Use the code below to verify your email. Valid for <strong style="color:#a78bfa;">2 minutes</strong>.
+          Use the code below to ${title} Valid for <strong style="color:#a78bfa;">2 minutes</strong>.
         </p>
 
         <!-- OTP -->
@@ -36,7 +33,7 @@ export const confirmEmailTemplate = ({
         </tr></table>
 
         <p style="margin:16px 0 0;font-size:12px;color:#4a4a6a;">
-          🔒 Never share this code. If you didn't sign up, ignore this email.
+          🔒 Never share this code.
         </p>
       </td></tr>
 

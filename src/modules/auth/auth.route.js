@@ -21,6 +21,21 @@ router.post(
   authController.signupOrLoginWithGmail
 );
 router.patch(
+  "/forget-password",
+  validation({ schema: validators.forgetPassword }),
+  authController.forgetPassword
+);
+router.patch(
+  "/verify-forget-password",
+  validation({ schema: validators.verifyForgetPassword }),
+  authController.verifyForgetPassword
+);
+router.patch(
+  "/reset-password",
+  validation({ schema: validators.resetPassword }),
+  authController.resetPassword
+);
+router.patch(
   "/confirm-email",
   validation({ schema: validators.confirmEmail }),
   authController.confirmEmail

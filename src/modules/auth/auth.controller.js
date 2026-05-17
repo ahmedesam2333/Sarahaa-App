@@ -150,7 +150,7 @@ export const login = asyncHandler(async (req, res, next) => {
 
   const user = await DBService.findOne({
     model: userModel,
-    filter: { email, provider: providerEnum[0] },
+    filter: { email, provider: providerEnum[0], deletedAt: { $exists: false } },
   });
   if (!user) {
     return next(new Error("Invalid email or password", { cause: 404 }));
@@ -172,11 +172,116 @@ export const login = asyncHandler(async (req, res, next) => {
   });
   return successResponse({
     res,
-    status: 200,
     message: `${
       user.role === "user" ? "User" : "Admin"
     } Logged in successfully`,
     data: credentials,
+  });
+});
+
+//Forget Password Api
+export const forgetPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  const { hashedOtp, otp } = await generateOtp();
+
+  const user = await DBService.findOneAndUpdate({
+    model: userModel,
+    filter: {
+      email,
+      provider: providerEnum[0],
+      deletedAt: { $exists: false },
+      confirmEmail: { $exists: true },
+    },
+    updatedData: {
+      forgetPasswordOtp: hashedOtp,
+    },
+  });
+
+  if (!user) {
+    return next(new Error("Email Not Found OR Not Verified", { cause: 404 }));
+  }
+  emailEvent.emit("forgetPassword", {
+    to: email,
+    otp,
+    subject: "Forget Password OTP",
+    title: "Reset Password",
+  });
+
+  return successResponse({
+    res,
+    message: " Please check your email for the OTP to reset your password",
+  });
+});
+
+//Verify Forget Password Api
+export const verifyForgetPassword = asyncHandler(async (req, res, next) => {
+  const { email, otp } = req.body;
+
+  const user = await DBService.findOne({
+    model: userModel,
+    filter: {
+      email,
+      provider: providerEnum[0],
+      deletedAt: { $exists: false },
+      forgetPasswordOtp: { $exists: true },
+      confirmEmail: { $exists: true },
+    },
+  });
+
+  if (!user) {
+    return next(new Error("Email Not Found", { cause: 404 }));
+  }
+
+  if (
+    !(await compareHash({ plainText: otp, hashed: user.forgetPasswordOtp }))
+  ) {
+    return next(new Error("Invalid OTP", { cause: 400 }));
+  }
+
+  return successResponse({
+    res,
+    message: "OTP Verified Successfully, You Can Now Reset Your Password",
+  });
+});
+
+//Reset Forget Password Api
+export const resetPassword = asyncHandler(async (req, res, next) => {
+  const { email, otp, password } = req.body;
+
+  const user = await DBService.findOne({
+    model: userModel,
+    filter: {
+      email,
+      provider: providerEnum[0],
+      deletedAt: { $exists: false },
+      forgetPasswordOtp: { $exists: true },
+      confirmEmail: { $exists: true },
+    },
+  });
+
+  if (!user) {
+    return next(new Error("Email Not Found", { cause: 404 }));
+  }
+
+  if (
+    !(await compareHash({ plainText: otp, hashed: user.forgetPasswordOtp }))
+  ) {
+    return next(new Error("Invalid OTP", { cause: 400 }));
+  }
+
+  await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: user._id,
+    updatedData: {
+      password: await generateHash({ plainText: password }),
+      $unset: { forgetPasswordOtp: true },
+    },
+  });
+
+  return successResponse({
+    res,
+    message:
+      "Password Reset Successfully, You Can Now Login With Your New Password",
   });
 });
 

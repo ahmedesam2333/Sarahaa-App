@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema(
         return this.provider === providerEnum[0] ? true : false;
       },
     },
+    oldPasswords: [String],
     phone: {
       type: String,
       required: function () {
@@ -62,7 +63,12 @@ const userSchema = new mongoose.Schema(
     picture: String,
     confirmEmail: Date,
     confirmEmailOtp: String,
+    forgetPasswordOtp: String,
     otpDate: Date,
+    deletedAt: Date,
+    deletedBy: mongoose.Schema.Types.ObjectId,
+    restoredAt: Date,
+    restoredBy: mongoose.Schema.Types.ObjectId,
   },
   {
     timestamps: true,
