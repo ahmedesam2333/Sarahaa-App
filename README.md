@@ -1,16 +1,18 @@
 <div align="center">
 
-# Sarahaa App
+<h1>🕵️ Sarahaa App</h1>
+<p><strong>Anonymous Messaging Platform — REST API Backend</strong></p>
 
-**Anonymous Messaging Platform — REST API Backend**
+![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=for-the-badge)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=flat-square)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=node.js&logoColor=white)
-![Express.js](https://img.shields.io/badge/Express.js-000000?style=flat-square&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+<br/>
 
-*A secure, scalable backend for an anonymous social messaging platform.*
+> A secure, scalable backend system for an anonymous social messaging platform.
+> Users can send and receive anonymous messages with full auth, privacy controls, and hardened API security.
 
 </div>
 
@@ -657,7 +659,14 @@ Users can freeze their own account (omit `userId`). Admins can target any user b
 
 ---
 
-## Author
+## 👨‍💻 Author
 
-**Ahmed Essam** — Node.js Backend Engineer  
-ahmedezsam@gmail.com · [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
+**Ahmed Essam** — Node.js Backend Engineer
+📩 ahmedezsam@gmail.com
+🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
+
+---
+
+<div align="center">
+<sub>Built with focus, coffee, and clean architecture principles ☕</sub>
+</div>
