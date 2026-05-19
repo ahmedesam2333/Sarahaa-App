@@ -100,7 +100,9 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 * ✔️ bcrypt password hashing with reuse prevention via `oldPasswords` array
 * ✔️ AES field encryption — phone numbers encrypted at rest
 * ✔️ Centralized Joi validation middleware across all routes
-* ✔️ CORS configured for specific allowed origins
+* ✔️ CORS configured globally via `cors()` middleware
+* ✔️ Helmet — sets secure HTTP response headers to protect against common web vulnerabilities
+* ✔️ Rate limiting via `express-rate-limit` — 2,000 requests / hour per IP; returns `429` with a JSON error on breach; uses `draft-8` standard headers
 
 ---
 
@@ -108,6 +110,7 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 * ✔️ Modular project structure — auth, user, DB, middleware, and utils fully separated
 * ✔️ Global async error handler with uniform JSON responses across all routes
+* ✔️ Chalk-powered server startup log — colored `Server is running on port 🚀` console output
 
 ---
 
@@ -127,12 +130,13 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | Framework | Express.js |
 | Database | MongoDB + Mongoose |
 | Auth | JWT (access & refresh tokens), Google OAuth |
-| Security | bcryptjs, CryptoJS (AES), CORS |
+| Security | bcryptjs, CryptoJS (AES), CORS, Helmet, express-rate-limit |
 | Validation | Joi |
 | Email | Nodemailer + Node EventEmitter |
 | File Upload | Multer (local & Cloudinary) |
 | OTP | nanoid (`customAlphabet`) |
 | Config | dotenv |
+| Logging | Chalk |
 
 ---
 
@@ -154,7 +158,8 @@ SARAHAA-APP/
 │   ├── DB/
 │   │   ├── models/
 │   │   │   ├── user.model.js
-│   │   │   └── token.model.js
+│   │   │   ├── token.model.js
+│   │   │   └── message.model.js
 │   │   ├── db.service.js
 │   │   └── connection.js
 │   ├── middleware/
@@ -210,6 +215,7 @@ SARAHAA-APP/
 | `changeCredentialsTime` | Date | Updated on password reset / logout-all · invalidates all prior tokens |
 | `deletedAt` / `deletedBy` | Date / ObjectId | Soft-delete fields |
 | `restoredAt` / `restoredBy` | Date / ObjectId | Restore audit fields |
+| `messages` | Virtual | Populates received messages via `Message.receiverId` — `justOne: false` |
 
 ---
 
@@ -225,6 +231,21 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 
 ---
 
+### Message — `src/DB/models/message.model.js`
+
+Stores anonymous (or identified) messages sent to a user's public profile link.
+
+| Field | Type | Notes |
+|---|---|---|
+| `content` | String | 2–20,000 chars · Required only when `attachments` is empty |
+| `attachments` | [Object] | Array of `{ secure_url, public_id }` — Cloudinary |
+| `receiverId` | ObjectId | Required · Ref: `User` — the message recipient |
+| `senderId` | ObjectId | Optional · Ref: `User` — absent when sent anonymously |
+| `deletedAt` / `deletedBy` | Date / ObjectId | Soft-delete fields |
+| `restoredAt` / `restoredBy` | Date / ObjectId | Restore audit fields |
+
+---
+
 ## Security Design
 
 - **Passwords** — bcrypt hashed; previous passwords stored to prevent reuse
@@ -232,6 +253,8 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 - **OTPs** — bcrypt hashed with a 2-minute expiry window; cooldown enforced on resend
 - **JWT** — Access + refresh token pair. Each token carries a unique `jti` (via nanoid). On logout, the `jti` is blacklisted in the Token collection. `changeCredentialsTime` on the user provides global session invalidation (logout from all devices).
 - **Google OAuth** — ID token verified server-side via `google-auth-library`; unified signup/login — no password required
+- **Helmet** — applies a suite of secure HTTP headers (CSP, HSTS, X-Frame-Options, etc.) on every response
+- **Rate Limiting** — `express-rate-limit` caps each IP at 2,000 requests per hour; excess requests are rejected with `429 Too Many Requests` and a JSON body; standard `RateLimit-*` headers (`draft-8`) are sent on every response
 
 ---
 
@@ -710,8 +733,6 @@ Users can freeze their own account (omit `userId`). Admins can target any user b
 
 ## Roadmap
 
-- [ ] Rate limiting per IP (`express-rate-limit`)
-- [ ] Helmet security headers
 - [ ] Anonymous message sending (no auth required)
 - [ ] Message inbox — view, delete, reply
 - [ ] Block / report a message
