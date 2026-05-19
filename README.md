@@ -1,716 +1,51 @@
 <div align="center">
 
-<h1>🕵️ Sarahaa App</h1>
-<p><strong>Anonymous Messaging Platform — REST API Backend</strong></p>
+# Sarahaa App
 
-![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=for-the-badge)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
-![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+**Anonymous Messaging Platform — REST API Backend**
 
-<br/>
+![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=flat-square)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/Express.js-000000?style=flat-square&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
 
-> A secure, scalable backend system for an anonymous social messaging platform.
-> Users can send and receive anonymous messages with full auth, privacy controls, and hardened API security.
+*A secure, scalable backend for an anonymous social messaging platform.*
 
 </div>
 
 ---
 
-## 📋 Table of Contents
+## Overview
 
-- [Overview](#-overview)
-- [Tech Stack](#-tech-stack)
-- [Features](#-features)
-- [Implementation Details](#-implementation-details)
-- [Database Structure](#-database-structure)
-- [Project Structure](#️-project-structure)
-- [API Documentation](#-api-documentation)
-- [Author](#-author)
+Sarahaa is an anonymous messaging platform where users share a public link and receive messages from anyone — without the sender revealing their identity.
 
----
-
-## 🧠 Overview
-
-Sarahaa is an anonymous messaging platform where users share a public link and receive messages from anyone — without the sender revealing their identity. This repository contains the **full backend API** built with Node.js and Express.js, featuring a security-first architecture.
-
-**Core concepts:**
-- Users register and get a personal public link
-- Anyone (logged in or not) can send an anonymous message to a user via that link
-- Users can view, manage, and reply to their messages (reply is visible to all; sender stays anonymous)
-- Full auth system with email OTP verification, Google OAuth, and password reset flow
+**Core flow:**
+- Users register and receive a personal public link
+- Anyone (authenticated or not) can send an anonymous message via that link
+- Users view, manage, and reply to messages — replies are public, senders stay anonymous
+- Full auth system: email OTP verification, Google OAuth, and password reset
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Runtime | Node.js |
 | Framework | Express.js |
-| Database | MongoDB + Mongoose ODM |
-| Authentication | JWT (access & refresh), Google OAuth (`google-auth-library`) |
+| Database | MongoDB + Mongoose |
+| Auth | JWT (access & refresh tokens), Google OAuth |
 | Security | bcryptjs, CryptoJS (AES), CORS |
 | Validation | Joi |
 | Email | Nodemailer + Node EventEmitter |
+| File Upload | Multer (local & Cloudinary) |
 | OTP | nanoid (`customAlphabet`) |
-| File Upload | Multer (local & Cloudinary cloud) |
-| Cloud Storage | Cloudinary |
-| Static Files | Express Static Middleware |
 | Config | dotenv |
 
 ---
 
-## ✅ Features
-
-### ✔️ Completed
-
-| # | Feature | File |
-|---|---|---|
-| 1 | Modular project structure & setup | `src/` |
-| 2 | MongoDB connection | `DB/connection.js` |
-| 3 | Global async error handler | `utils/response.js` |
-| 4 | Uniform JSON success/error response | `utils/response.js` |
-| 5 | bcrypt password hashing & comparison | `utils/security/hash.security.js` |
-| 6 | AES symmetric encryption on sensitive fields | `utils/security/encrypt.security.js` |
-| 7 | nanoid OTP generation + 2-min expiry logic | `utils/security/otp.security.js` |
-| 8 | JWT role-aware token system (Bearer/Admin) with `jti` tracking | `utils/security/token.security.js` |
-| 9 | Token revocation model — blacklist revoked JWTs | `DB/models/token.model.js` |
-| 10 | Auth middleware — authentication, authorization, combined `auth` (returns `decoded`) | `middleware/auth.middleware.js` |
-| 11 | Centralized Joi validation middleware | `middleware/validation.middleware.js` |
-| 12 | CORS configured for specific origins | `app.controller.js` |
-| 13 | Google OAuth — unified signup/login via `google-auth-library` | `modules/auth/auth.controller.js` |
-| 14 | OTP email verification with EventEmitter | `utils/events/email.event.js` |
-| 15 | Forget password — OTP-based reset flow (3 steps) + `changeCredentialsTime` on reset | `modules/auth/auth.controller.js` |
-| 16 | User profile — get, update basic info, update password | `modules/user/user.controller.js` |
-| 17 | Local file upload — disk storage + file type validation | `utils/multer/local.multer.js` |
-| 18 | Cloud file upload — Cloudinary storage via Multer | `utils/multer/cloud.multer.js` |
-| 19 | Cloudinary integration — upload, destroy, bulk delete, folder prefix delete | `utils/multer/cloudinary.js` |
-| 20 | Profile image upload (Cloudinary) — replaces old image if exists | `modules/user/user.controller.js` |
-| 21 | Cover images upload — up to 2 (Cloudinary) — replaces old images if exist | `modules/user/user.controller.js` |
-| 22 | Static file serving via `express.static` | `app.controller.js` |
-| 23 | Account soft-delete (freeze) & restore | `modules/user/user.controller.js` |
-| 24 | Hard delete account (admin only) | `modules/user/user.controller.js` |
-| 25 | Public share profile by userId | `modules/user/user.controller.js` |
-| 26 | Refresh token endpoint | `modules/user/user.controller.js` |
-| 27 | Logout — single session (JWT blacklist) or all sessions (`changeCredentialsTime`) | `modules/user/user.controller.js` |
-
----
-
-### 🔜 In Progress / Upcoming
-
-- [ ] Rate limiting per IP (`express-rate-limit`)
-- [ ] Helmet security headers
-- [ ] Anonymous message sending (no auth required)
-- [ ] Message inbox — view, delete, reply
-- [ ] Block/report a message
-- [ ] Pagination for message inbox
-- [ ] Admin dashboard
-
----
-
-## 🔧 Implementation Details
-
-<details>
-<summary><strong>🛠️ asyncHandler + successResponse + globalErrorHandling</strong></summary>
-
-<br/>
-
-```javascript
-export const asyncHandler = (fn) => {
-  return async (req, res, next) => {
-    await fn(req, res, next).catch((error) => {
-      error.cause = 500;
-      return next(error);
-    });
-  };
-};
-
-export const successResponse = ({ res, message = "Done", status = 200, data }) => {
-  return res.status(status).json({ message, data });
-};
-
-export const globalErrorHandling = (error, req, res, next) => {
-  return res
-    .status(error.cause || 400)
-    .json({ err_message: error.message, stack: error.stack });
-};
-```
-
-</details>
-
-<details>
-<summary><strong>🔒 Hashing — bcrypt</strong></summary>
-
-<br/>
-
-```javascript
-import bcrypt from "bcryptjs";
-
-export const generateHash = async ({ plainText = "", salt = 12 }) => {
-  return bcrypt.hashSync(plainText, parseInt(salt));
-};
-
-export const compareHash = async ({ plainText = "", hashed = "" }) => {
-  return bcrypt.compareSync(plainText, hashed);
-};
-```
-
-</details>
-
-<details>
-<summary><strong>🔐 Encryption — AES (crypto-js)</strong></summary>
-
-<br/>
-
-```javascript
-import CryptoJS from "crypto-js";
-
-export const genEncrypt = async ({ plainText = "", secretKey = process.env.AES_SECRET_KEY }) => {
-  return CryptoJS.AES.encrypt(plainText, secretKey).toString();
-};
-
-export const genDecrypt = async ({ cipherText = "", secretKey = process.env.AES_SECRET_KEY }) => {
-  return CryptoJS.AES.decrypt(cipherText, secretKey).toString(CryptoJS.enc.Utf8);
-};
-```
-
-</details>
-
-<details>
-<summary><strong>🔢 OTP — nanoid + expiry logic</strong></summary>
-
-<br/>
-
-```javascript
-import { customAlphabet } from "nanoid";
-import { generateHash } from "../../utils/security/hash.security.js";
-
-export const generateOtp = async () => {
-  const otp = customAlphabet("0123456789", 6)();
-  const hashedOtp = await generateHash({ plainText: otp });
-  return { otp, hashedOtp };
-};
-
-export const checkOtpAge = async ({ caller = "", user } = {}) => {
-  const otpAge = Date.now() - new Date(user.otpDate).getTime();
-  switch (caller) {
-    case "confirmEmail":
-      if (otpAge > 60000 * 2) return true;
-      break;
-    default:
-      if (otpAge < 60000 * 2) {
-        return Math.ceil((60000 * 2 - otpAge) / 1000);
-      }
-      break;
-  }
-};
-```
-
-</details>
-
-<details>
-<summary><strong>🪙 JWT — Role-aware Token System with JTI & Revocation</strong></summary>
-
-<br/>
-
-Tokens include a `jti` (JWT ID) via `nanoid`. On logout, the `jti` is stored in the `Token` collection (blacklist). Every authenticated request checks the blacklist before proceeding. `changeCredentialsTime` on the user document provides a global session invalidation mechanism (logout from all devices).
-
-```javascript
-import jwt from "jsonwebtoken";
-import { nanoid } from "nanoid";
-import TokenModel from "../../DB/models/token.model.js";
-
-export const signatureLevelEnum = { bearer: "Bearer", admin: "Admin" };
-export const tokenTypeEnum = { access: "access", refresh: "refresh" };
-export const logoutEnum = {
-  logoutFromAll: "logoutFromAll",
-  logout: "logout",
-  stayLoggedIn: "stayLoggedIn",
-};
-
-export const genAccessToken = async ({ payload = {}, signature, options } = {}) =>
-  jwt.sign(payload, signature ?? process.env.JWT_ACCESS_USER_KEY, options ?? {
-    expiresIn: Number(process.env.JWT_ACCESS_EXPIRES_IN), jwtid: nanoid(),
-  });
-
-export const genRefreshToken = async ({ payload = {}, signature, options } = {}) =>
-  jwt.sign(payload, signature ?? process.env.JWT_REFRESH_USER_KEY, options ?? {
-    expiresIn: Number(process.env.JWT_REFRESH_EXPIRES_IN), jwtid: nanoid(),
-  });
-
-export const decodeToken = async ({ next, authorization = "", tokenType = tokenTypeEnum.access } = {}) => {
-  const [Bearer, token] = authorization?.split(" ") || [];
-  if (!Bearer || !token) return next(new Error("Missing-Token-Parts", { cause: 401 }));
-  const signatures = await getSignatures({ signatureLevel: Bearer });
-  const decoded = await verifyToken({
-    token,
-    signature: tokenType === tokenTypeEnum.access ? signatures.accessSignature : signatures.refreshSignature,
-  });
-  if (!decoded?._id) return next(new Error("Invalid-Token", { cause: 400 }));
-  const revokedToken = await DBService.findOne({ model: TokenModel, filter: { jti: decoded.jti } });
-  if (decoded.jti && revokedToken) return next(new Error("Token-Revoked", { cause: 401 }));
-  const user = await DBService.findById({ model: userModel, id: decoded._id });
-  if (!user) return next(new Error("User Not Found", { cause: 404 }));
-  if (user.changeCredentialsTime?.getTime() > decoded.iat * 1000)
-    return next(new Error("Invalid Credentials", { cause: 401 }));
-  return { user, decoded };
-};
-
-export const createRevokeToken = async ({ req } = {}) => {
-  await DBService.create({
-    model: TokenModel,
-    data: [{ jti: req.decoded.jti, expiresIn: req.decoded.iat + Number(process.env.JWT_REFRESH_EXPIRES_IN), userId: req.decoded._id }],
-  });
-  return true;
-};
-
-export const generateLoginCredentials = async ({ user } = {}) => {
-  const signatures = await getSignatures({
-    signatureLevel: user.role !== "user" ? signatureLevelEnum.admin : signatureLevelEnum.bearer,
-  });
-  return {
-    access_token: await genAccessToken({ payload: { _id: user._id }, signature: signatures.accessSignature }),
-    refresh_token: await genRefreshToken({ payload: { _id: user._id }, signature: signatures.refreshSignature }),
-  };
-};
-```
-
-</details>
-
-<details>
-<summary><strong>🛡️ Auth Middleware — authentication + authorization + auth</strong></summary>
-
-<br/>
-
-`decodeToken` returns both `user` and `decoded` (the raw JWT payload). Both are attached to `req` so controllers can access the `jti` and `iat` for logout and revocation flows.
-
-```javascript
-import { asyncHandler } from "../utils/response.js";
-import { decodeToken, tokenTypeEnum } from "../utils/security/token.security.js";
-
-export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
-  return asyncHandler(async (req, res, next) => {
-    const { user, decoded } = (await decodeToken({ next, authorization: req.headers?.authorization, tokenType })) || {};
-    req.user = user;
-    req.decoded = decoded;
-    return next();
-  });
-};
-
-export const authorization = ({ accessRoles = [] } = {}) => {
-  return asyncHandler(async (req, res, next) => {
-    if (!accessRoles.includes(req.user?.role))
-      return next(new Error("Unauthorized Account", { cause: 403 }));
-    return next();
-  });
-};
-
-export const auth = ({ tokenType = tokenTypeEnum.access, accessRoles = [] } = {}) => {
-  return asyncHandler(async (req, res, next) => {
-    const { user, decoded } = (await decodeToken({ next, authorization: req.headers?.authorization, tokenType })) || {};
-    req.user = user;
-    req.decoded = decoded;
-    if (!accessRoles.includes(req.user?.role))
-      return next(new Error("Unauthorized Account", { cause: 403 }));
-    return next();
-  });
-};
-```
-
-</details>
-
-<details>
-<summary><strong>✅ Validation Middleware + generalFields</strong></summary>
-
-<br/>
-
-`generalFields` is defined in `validation.middleware.js` and shared across all module validation files. Schemas are composed with Joi's `.append()` to avoid repetition.
-
-```javascript
-import { asyncHandler } from "../utils/response.js";
-import joi from "joi";
-import { Types } from "mongoose";
-
-const validateObjectId = (value, helper) =>
-  Types.ObjectId.isValid(value) ? true : helper.message("Invalid ObjectId");
-
-export const generalFields = {
-  fullName: joi.string().trim().min(5).max(41).custom((value, helpers) => {
-    const parts = value.split(/\s+/);
-    if (parts.length < 2) return helpers.message("fullName must contain at least first and last name");
-    if (parts[0].length < 2 || parts[0].length > 20) return helpers.message("first name must be 2–20 chars");
-    if (parts[1].length < 2 || parts[1].length > 20) return helpers.message("last name must be 2–20 chars");
-    return value;
-  }),
-  email: joi.string().email({ minDomainSegments: 2, maxDomainSegments: 3, tlds: { allow: ["com","net","gov","edu","org","io"] } })
-    .messages({ "string.email": "Please provide a valid email address" }),
-  password: joi.string().pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
-    .messages({ "string.pattern.base": "Password: min 8 chars, uppercase, lowercase, number & special char (@$!%*?&)" }),
-  phone: joi.string().pattern(/^01[0125][0-9]{8}$/)
-    .messages({ "string.pattern.base": "Valid Egyptian numbers only: 010, 011, 012, 015" }),
-  gender: joi.string().valid("male", "female"),
-  role: joi.string().valid("user", "admin"),
-  otp: joi.string().length(6).pattern(/^[0-9]+$/),
-  idToken: joi.string(),
-  id: joi.string().custom(validateObjectId),
-};
-
-export const validation = ({ schema } = {}) => {
-  return asyncHandler(async (req, res, next) => {
-    const validationError = [];
-    for (let key of Object.keys(schema)) {
-      const result = schema[key].validate(req[key], { abortEarly: false });
-      if (result.error) validationError.push({ key, details: result.error.details });
-    }
-    if (validationError.length) return res.status(400).json({ err_message: "Validation Error", validationError });
-    return next();
-  });
-};
-```
-
-</details>
-
-<details>
-<summary><strong>📁 File Upload — Multer (Local + Cloud)</strong></summary>
-
-<br/>
-
-**`src/utils/multer/local.multer.js`** — Saves files to disk under `src/uploads/<customPath>/<userId>/`. Scopes uploads per user automatically when `req.user._id` is available. The final relative path is attached to `file.finalPath` for easy DB storage.
-
-```javascript
-import multer from "multer";
-import { nanoid } from "nanoid";
-import fs from "node:fs";
-import path from "node:path";
-
-export const fileValidation = {
-  image: ["image/jpeg", "image/gif"],
-  document: ["application/pdf", "application/msword"],
-};
-
-export const localFileUpload = ({ customPath = "general", validation = [] } = {}) => {
-  let basePath = `uploads/${customPath}`;
-  const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      if (req.user?._id) basePath += `/${req.user._id}`;
-      const fullPath = path.resolve(`./src/${basePath}`);
-      if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
-      cb(null, path.resolve(fullPath));
-    },
-    filename: function (req, file, cb) {
-      const uniqueFileName = Date.now() + "___" + Math.random() + "__" + nanoid() + "__" + file.originalname;
-      file.finalPath = basePath + "/" + uniqueFileName;
-      cb(null, uniqueFileName);
-    },
-  });
-  const fileFilter = (req, file, cb) => {
-    if (!validation.includes(file.mimetype)) return cb(new Error("Invalid File Type"), false);
-    cb(null, true);
-  };
-  return multer({ dest: "./temp", fileFilter, storage });
-};
-```
-
-**`src/utils/multer/cloud.multer.js`** — Buffers file in `./temp` then hands it off to Cloudinary. No permanent local storage.
-
-```javascript
-import multer from "multer";
-
-export const cloudFileUpload = ({ validation = [] } = {}) => {
-  const storage = multer.diskStorage({});
-  const fileFilter = (req, file, cb) => {
-    if (!validation.includes(file.mimetype)) return cb(new Error("Invalid File Type"), false);
-    cb(null, true);
-  };
-  return multer({ dest: "./temp", fileFilter, storage });
-};
-```
-
-</details>
-
-<details>
-<summary><strong>☁️ Cloudinary Integration — upload, destroy, bulk delete</strong></summary>
-
-<br/>
-
-**`src/utils/multer/cloudinary.js`** — Wraps the Cloudinary v2 SDK. All uploads are namespaced under `{APPLICATION_NAME}/{path}` to keep assets organized per feature/user.
-
-```javascript
-import { v2 as cloudinary } from "cloudinary";
-
-export const cloud = () => {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true,
-  });
-  return cloudinary;
-};
-
-export const uploadFile = async ({ file = {}, path = "general" } = {}) =>
-  await cloud().uploader.upload(file.path, { folder: `${process.env.APPLICATION_NAME}/${path}` });
-
-export const uploadFiles = async ({ files = [], path = "general" } = {}) => {
-  const attachments = [];
-  for (const file of files) {
-    const { secure_url, public_id } = await uploadFile({ file, path });
-    attachments.push({ secure_url, public_id });
-  }
-  return attachments;
-};
-
-export const destroyFile = async ({ public_id = "" } = {}) =>
-  await cloud().uploader.destroy(public_id);
-
-export const deleteResources = async ({ public_ids = [], options = { type: "upload", resource_type: "image" } } = {}) =>
-  await cloud().api.delete_resources(public_ids, options);
-
-export const deleteFolderByPrefix = async ({ prefix = "" } = {}) =>
-  await cloud().api.delete_resources_by_prefix(`${process.env.APPLICATION_NAME}/${prefix}`);
-```
-
-**Cloudinary Dashboard — Profile & Cover Image Uploads:**
-
-![Cloudinary Upload Preview](https://drive.google.com/uc?export=view&id=19LoatLss1WMcPWciqdty8W1pn2REHPKj)
-
-</details>
-
-<details>
-<summary><strong>🔑 Google OAuth — Unified Signup / Login</strong></summary>
-
-<br/>
-
-Uses `google-auth-library` to verify the Google ID token from the client. If the email is already registered via Google, the user is logged in. If the email exists under a different provider (`system`), a conflict error is returned. Otherwise, a new account is created automatically with no password requirement.
-
-```javascript
-async function verifyGoogle({ idToken } = {}) {
-  const client = new OAuth2Client();
-  const ticket = await client.verifyIdToken({ idToken, audience: process.env.WEB_CLIENT_IDS.split(",") });
-  return ticket.getPayload();
-}
-
-export const signupOrLoginWithGmail = asyncHandler(async (req, res, next) => {
-  const { idToken } = req.body;
-  const { name, email, picture, email_verified } = await verifyGoogle({ idToken });
-  if (!email_verified) return next(new Error("Email Not Verified", { cause: 401 }));
-  const user = await DBService.findOne({ model: userModel, filter: { email } });
-  if (user) {
-    if (user.provider === providerEnum[1]) {
-      return successResponse({ res, status: 200, data: await generateLoginCredentials({ user }) });
-    }
-    return next(new Error("Email Exist", { cause: 409 }));
-  }
-  const newUser = await DBService.create({
-    model: userModel,
-    data: [{ fullName: name, email, confirmEmail: Date.now(), picture, provider: providerEnum[1] }],
-  });
-  return successResponse({ res, message: "User created successfully", status: 201, data: await generateLoginCredentials({ user: newUser }) });
-});
-```
-
-</details>
-
-<details>
-<summary><strong>📧 Email Service + Event System</strong></summary>
-
-<br/>
-
-**`src/utils/email/send.email.js`** — Nodemailer transporter via Gmail service.
-
-**`src/utils/events/email.event.js`**
-```javascript
-import { EventEmitter } from "node:events";
-import { sendEmail } from "../email/send.email.js";
-import { emailTemplate } from "../email/templates/Email.template.js";
-
-export const emailEvent = new EventEmitter();
-
-emailEvent.on("confirmEmail", async (data = {}) => {
-  await sendEmail({ to: data.to, subject: data.subject || "Confirm-Email", html: emailTemplate({ otp: data.otp }) })
-    .catch((error) => console.log("Fail to send the email", error));
-});
-
-emailEvent.on("forgetPassword", async (data = {}) => {
-  await sendEmail({ to: data.to, subject: data.subject || "Reset Password", html: emailTemplate({ otp: data.otp, title: data.title }) })
-    .catch((error) => console.log("Fail to send the email", error));
-});
-```
-
-**Confirm Email Preview:**
-
-![Confirm Email Template](https://drive.google.com/uc?export=view&id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f)
-
-**Forget Password Email Preview:**
-
-![Forget Password Email Template](https://drive.google.com/uc?export=view&id=1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y)
-
-</details>
-
----
-
-## 🗃️ Database Structure
-
-### MongoDB Connection
-
-> Managed via `src/DB/connection.js` using Mongoose.
-
----
-
-### 📄 User Model — `src/DB/models/user.model.js`
-
-| Field | Type | Constraints |
-|---|---|---|
-| `firstName` | String | Required · min: 2 · max: 20 |
-| `lastName` | String | Required · min: 2 · max: 20 |
-| `fullName` | Virtual | `get` → `firstName lastName` · `set` → splits into first/last |
-| `email` | String | Required · Unique |
-| `password` | String | Required if `provider === "system"` · bcrypt hashed |
-| `oldPasswords` | [String] | Array of previous hashed passwords — prevents reuse |
-| `phone` | String | Required if `provider === "system"` · AES-encrypted |
-| `gender` | String | Enum: `male` / `female` · Default: `male` |
-| `role` | String | Enum: `user` / `admin` · Default: `user` |
-| `provider` | String | Enum: `system` / `google` · Default: `system` |
-| `picture` | Object | `{ secure_url, public_id }` — Cloudinary profile image |
-| `coverImages` | [Object] | Array of `{ secure_url, public_id }` — Cloudinary cover images |
-| `confirmEmail` | Date | Set on email verification · absent = unverified |
-| `confirmEmailOtp` | String | Hashed OTP · removed with `$unset` after verification |
-| `forgetPasswordOtp` | String | Hashed OTP for password reset · removed after use |
-| `otpDate` | Date | OTP generation timestamp · used for 2-min expiry |
-| `changeCredentialsTime` | Date | Updated on password reset / logout-from-all · invalidates all prior tokens |
-| `deletedAt` | Date | Soft-delete timestamp · absent = active account |
-| `deletedBy` | ObjectId | Reference to user who deleted the account |
-| `restoredAt` | Date | Restore timestamp |
-| `restoredBy` | ObjectId | Reference to admin who restored the account |
-| `timestamps` | — | `createdAt` & `updatedAt` auto-managed |
-
-<details>
-<summary><strong>Click to see schema code</strong></summary>
-
-<br/>
-
-```javascript
-import mongoose from "mongoose";
-
-const genderEnum = ["male", "female"];
-export const roleEnum = ["user", "admin"];
-export const providerEnum = ["system", "google"];
-
-const userSchema = new mongoose.Schema(
-  {
-    firstName: { type: String, required: true, minLength: [2, "first name must be at least 2 characters"], maxLength: [20, "first name must be at most 20 characters"] },
-    lastName: { type: String, required: true, minLength: [2, "last name must be at least 2 characters"], maxLength: [20, "last name must be at most 20 characters"] },
-    email: { type: String, required: true, unique: [true, "email must be unique"] },
-    password: { type: String, required: function () { return this.provider === providerEnum[0]; } },
-    oldPasswords: [String],
-    phone: { type: String, required: function () { return this.provider === providerEnum[0]; } },
-    gender: { type: String, enum: { values: genderEnum, message: `Gender allows only male or female` }, default: genderEnum[0] },
-    role: { type: String, enum: { values: roleEnum, message: `Role allows only user or admin` }, default: roleEnum[0] },
-    provider: { type: String, enum: { values: providerEnum, message: `Provider allows only system or google` }, default: providerEnum[0] },
-    picture: { secure_url: String, public_id: String },
-    coverImages: [{ secure_url: String, public_id: String }],
-    confirmEmail: Date,
-    confirmEmailOtp: String,
-    forgetPasswordOtp: String,
-    otpDate: Date,
-    changeCredentialsTime: Date,
-    deletedAt: Date,
-    deletedBy: mongoose.Schema.Types.ObjectId,
-    restoredAt: Date,
-    restoredBy: mongoose.Schema.Types.ObjectId,
-  },
-  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
-);
-
-userSchema.virtual("fullName")
-  .set(function (value) {
-    const [firstName, lastName] = value?.split(" ") || [];
-    this.set({ firstName, lastName });
-  })
-  .get(function () { return `${this.firstName} ${this.lastName}`; });
-
-const userModel = mongoose.models.User || mongoose.model("User", userSchema);
-export default userModel;
-userModel.syncIndexes();
-```
-
-</details>
-
----
-
-### 🔑 Token Model — `src/DB/models/token.model.js`
-
-Stores revoked JWT IDs (blacklist). Each entry is indexed by `jti` and scoped to a `userId`. The `expiresIn` field allows future TTL-based cleanup.
-
-| Field | Type | Constraints |
-|---|---|---|
-| `jti` | String | Required · Unique — the JWT ID from the token payload |
-| `expiresIn` | Number | Required — Unix timestamp of token expiry (for cleanup) |
-| `userId` | ObjectId | Required · Ref: `User` |
-| `timestamps` | — | `createdAt` & `updatedAt` auto-managed |
-
-<details>
-<summary><strong>Click to see schema code</strong></summary>
-
-<br/>
-
-```javascript
-import mongoose from "mongoose";
-
-const tokenSchema = new mongoose.Schema(
-  {
-    jti: { type: String, required: true, unique: true },
-    expiresIn: { type: Number, required: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: "User" },
-  },
-  { timestamps: true }
-);
-
-const TokenModel = mongoose.models.Token || mongoose.model("Token", tokenSchema);
-export default TokenModel;
-TokenModel.syncIndexes();
-```
-
-</details>
-
----
-
-### 🗄️ DB Service Layer — `src/DB/db.service.js`
-
-Generalized ODM-agnostic data access layer. Swapping Mongoose only requires changes here.
-
-<details>
-<summary><strong>Click to see all methods</strong></summary>
-
-<br/>
-
-```javascript
-export const findOne = async ({ model, filter = {}, projection = {}, populate = [] } = {}) =>
-  await model.findOne(filter, projection).populate(populate);
-
-export const findById = async ({ model, id, projection = {}, populate = [] } = {}) =>
-  await model.findById(id, projection).populate(populate);
-
-export const create = async ({ model, data = [{}], options = { validateBeforeSave: true } } = {}) =>
-  await model.create(data, options);
-
-export const findByIdAndUpdate = async ({ model, id, updatedData = {}, options = { returnDocument: "after" } } = {}) =>
-  await model.findByIdAndUpdate(id, { ...updatedData, $inc: { __v: 1 } }, options);
-
-export const findOneAndUpdate = async ({ model, filter = {}, updatedData = {}, options } = {}) =>
-  await model.findOneAndUpdate(filter, { ...updatedData, $inc: { __v: 1 } }, options);
-
-export const deleteOne = async ({ model, filter = {} } = {}) =>
-  await model.deleteOne(filter);
-```
-
-</details>
-
----
-
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 SARAHAA-APP/
@@ -755,47 +90,75 @@ SARAHAA-APP/
 │   └── index.js
 ├── .gitignore
 ├── package.json
-├── package-lock.json
 └── README.md
 ```
 
 ---
 
-## 📖 API Documentation
+## Database Models
 
-> **Base URL:** `http://localhost:5000`
->
-> 🔒 Protected routes require `Authorization: Bearer <token>` or `Authorization: Admin <token>` header.
->
-> ❌ All routes return a `400 Validation Error` on invalid input — omitted per endpoint for brevity.
+### User — `src/DB/models/user.model.js`
 
----
-
-## 🔑 Auth — `/auth`
-
-<details>
-<summary><strong>Routes</strong></summary>
-
-<br/>
-
-```javascript
-router.post("/signup",                  validation({ schema: validators.signup }),                     authController.signup);
-router.post("/login",                   validation({ schema: validators.login }),                      authController.login);
-router.post("/gmail",                   validation({ schema: validators.signupOrLoginWithGmail }),     authController.signupOrLoginWithGmail);
-router.patch("/confirm-email",          validation({ schema: validators.confirmEmail }),               authController.confirmEmail);
-router.patch("/resend-otp",             validation({ schema: validators.resendOtp }),                  authController.resendOtp);
-router.patch("/forget-password",        validation({ schema: validators.forgetPassword }),             authController.forgetPassword);
-router.patch("/verify-forget-password", validation({ schema: validators.verifyForgetPassword }),       authController.verifyForgetPassword);
-router.patch("/reset-password",         validation({ schema: validators.resetPassword }),              authController.resetPassword);
-```
-
-</details>
+| Field | Type | Notes |
+|---|---|---|
+| `firstName` / `lastName` | String | Required · 2–20 chars each |
+| `fullName` | Virtual | Getter/setter splitting first & last name |
+| `email` | String | Required · Unique |
+| `password` | String | Required for `system` provider · bcrypt hashed |
+| `oldPasswords` | [String] | Prevents password reuse |
+| `phone` | String | Required for `system` provider · AES encrypted |
+| `gender` | String | `male` / `female` · Default: `male` |
+| `role` | String | `user` / `admin` · Default: `user` |
+| `provider` | String | `system` / `google` · Default: `system` |
+| `picture` | Object | `{ secure_url, public_id }` — Cloudinary |
+| `coverImages` | [Object] | Array of `{ secure_url, public_id }` — Cloudinary |
+| `confirmEmail` | Date | Set on verification · absent = unverified |
+| `confirmEmailOtp` | String | Hashed · removed after verification |
+| `forgetPasswordOtp` | String | Hashed · removed after reset |
+| `otpDate` | Date | OTP timestamp — drives 2-min expiry logic |
+| `changeCredentialsTime` | Date | Updated on password reset / logout-all · invalidates all prior tokens |
+| `deletedAt` / `deletedBy` | Date / ObjectId | Soft-delete fields |
+| `restoredAt` / `restoredBy` | Date / ObjectId | Restore audit fields |
 
 ---
 
-### `POST` `/auth/signup` — Register a new user
+### Token (Blacklist) — `src/DB/models/token.model.js`
 
-**Request Body**
+Stores revoked JWT IDs. Every authenticated request checks this collection before proceeding.
+
+| Field | Type | Notes |
+|---|---|---|
+| `jti` | String | Required · Unique — JWT ID from token payload |
+| `expiresIn` | Number | Unix timestamp — for future TTL cleanup |
+| `userId` | ObjectId | Required · Ref: `User` |
+
+---
+
+## Security Design
+
+- **Passwords** — bcrypt hashed; old passwords stored to prevent reuse
+- **Phone numbers** — AES encrypted at rest
+- **OTPs** — bcrypt hashed with a 2-minute expiry window
+- **JWT** — Access + refresh token pair with `jti` tracking. Tokens include a unique `jti` (via nanoid). Logout revokes the `jti` into a blacklist. `changeCredentialsTime` on the user provides global session invalidation (logout from all devices).
+- **Google OAuth** — ID token verified server-side via `google-auth-library`; unified signup/login flow
+
+---
+
+## API Reference
+
+**Base URL:** `http://localhost:5000`
+
+> 🔒 Protected routes require `Authorization: Bearer <token>` or `Authorization: Admin <token>`
+>
+> All routes return `400 Validation Error` on invalid input — omitted per endpoint for brevity.
+
+---
+
+### Auth — `/auth`
+
+#### `POST /auth/signup` — Register a new user
+
+**Body**
 ```json
 {
   "fullName": "Ahmed Essam",
@@ -807,51 +170,29 @@ router.patch("/reset-password",         validation({ schema: validators.resetPas
 }
 ```
 
-**Validation Rules**
+**Validation**
 
 | Field | Rules |
 |---|---|
 | `fullName` | Required · first + last name · each part 2–20 chars |
-| `email` | Required · valid TLD: `com/net/org/io/gov/edu` |
-| `password` | Required · min 8 chars · uppercase + lowercase + digit + special char |
-| `phone` | Required · Egyptian numbers only: `010/011/012/015` |
-| `gender` | Optional · `"male"` or `"female"` |
-| `role` | Optional · `"user"` or `"admin"` |
+| `email` | Required · valid TLD: `com / net / org / io / gov / edu` |
+| `password` | Required · min 8 chars · must include uppercase, lowercase, digit, special char |
+| `phone` | Required · Egyptian numbers only: `010 / 011 / 012 / 015` |
+| `gender` | Optional · `male` or `female` |
+| `role` | Optional · `user` or `admin` |
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `201` | User created, OTP sent to email | `{ "message": "User created successfully and Please check your email to verify" }` |
-| `409` | Email already registered | `{ "err_message": "Email already exists" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const signup = asyncHandler(async (req, res, next) => {
-  const { fullName, email, password, gender, phone, role } = req.body;
-  if (await DBService.findOne({ model: userModel, filter: { email } }))
-    return next(new Error("Email already exists", { cause: 409 }));
-  const hashedPassword = await generateHash({ plainText: password });
-  const encPhone = await genEncrypt({ plainText: phone });
-  const { otp, hashedOtp: confirmEmailOtp } = await generateOtp();
-  await DBService.create({
-    model: userModel,
-    data: [{ fullName, email, password: hashedPassword, gender, phone: encPhone, role, confirmEmailOtp, otpDate: Date.now() }],
-  });
-  emailEvent.emit("confirmEmail", { to: email, otp });
-  return successResponse({ res, message: "User created successfully and Please check your email to verify", status: 201 });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `201` | User created — OTP sent to email |
+| `409` | Email already registered |
 
 ---
 
-### `POST` `/auth/login` — Login with credentials
+#### `POST /auth/login` — Login with credentials
 
-**Request Body**
+**Body**
 ```json
 {
   "email": "ahmed@example.com",
@@ -861,210 +202,106 @@ export const signup = asyncHandler(async (req, res, next) => {
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Login successful | `{ "message": "User Logged in successfully", "data": { "access_token": "...", "refresh_token": "..." } }` |
-| `401` | Email not verified | `{ "err_message": "Please verify your account" }` |
-| `401` | Account is frozen/deleted | `{ "err_message": "this Account is deleted" }` |
-| `404` | Wrong email or password | `{ "err_message": "Invalid email or password" }` |
+| Status | Description |
+|---|---|
+| `200` | Login successful — returns `access_token` and `refresh_token` |
+| `401` | Email not verified |
+| `401` | Account is frozen |
+| `404` | Invalid email or password |
 
-> 🔑 `Bearer` prefix for users · `Admin` prefix for admins — resolved via `generateLoginCredentials`
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const login = asyncHandler(async (req, res, next) => {
-  const { email, password } = req.body;
-  const user = await DBService.findOne({
-    model: userModel,
-    filter: { email, provider: providerEnum[0], deletedAt: { $exists: false } },
-  });
-  if (!user) return next(new Error("Invalid email or password", { cause: 404 }));
-  if (!user.confirmEmail) return next(new Error("Please verify your account", { cause: 401 }));
-  if (user.deletedAt) return next(new Error("this Account is deleted", { cause: 401 }));
-  const match = await compareHash({ plainText: password, hashed: user.password });
-  if (!match) return next(new Error("Invalid email or password", { cause: 404 }));
-  const credentials = await generateLoginCredentials({ user });
-  return successResponse({
-    res,
-    message: `${user.role === "user" ? "User" : "Admin"} Logged in successfully`,
-    data: credentials,
-  });
-});
-```
-
-</details>
+> Token prefix is `Bearer` for users and `Admin` for admins — resolved automatically from user role.
 
 ---
 
-### `POST` `/auth/gmail` — Signup or Login with Google
+#### `POST /auth/gmail` — Signup or login with Google
 
-**Request Body**
+**Body**
 ```json
 { "idToken": "<google_id_token>" }
 ```
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `201` | New Google account created | `{ "message": "User created successfully", "data": { "access_token": "...", "refresh_token": "..." } }` |
-| `200` | Existing Google user logged in | `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }` |
-| `401` | Google email not verified | `{ "err_message": "Email Not Verified" }` |
-| `409` | Email registered under system provider | `{ "err_message": "Email Exist" }` |
+| Status | Description |
+|---|---|
+| `201` | New account created via Google |
+| `200` | Existing Google user logged in |
+| `401` | Google email not verified |
+| `409` | Email already registered under `system` provider |
 
 ---
 
-### `PATCH` `/auth/confirm-email` — Verify email with OTP
+#### `PATCH /auth/confirm-email` — Verify email with OTP
 
-**Request Body**
+**Body**
 ```json
-{
-  "email": "ahmed@example.com",
-  "otp": "123456"
-}
+{ "email": "ahmed@example.com", "otp": "123456" }
 ```
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Email verified successfully | `{ "message": "Email Verified Successfully", "data": { ... } }` |
-| `400` | OTP is wrong | `{ "err_message": "Invalid OTP" }` |
-| `400` | OTP is older than 2 minutes | `{ "err_message": "OTP has expired, please request a new one" }` |
-| `404` | Email not found or already verified | `{ "err_message": "Invalid Email or Has Been Confirmed Before" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const confirmEmail = asyncHandler(async (req, res, next) => {
-  const { email, otp } = req.body;
-  const user = await DBService.findOne({ model: userModel, filter: { email, confirmEmail: { $exists: false }, confirmEmailOtp: { $exists: true }, otpDate: { $exists: true } } });
-  if (!user) return next(new Error("Invalid Email or Has Been Confirmed Before", { cause: 404 }));
-  if (!(await compareHash({ plainText: otp, hashed: user.confirmEmailOtp }))) return next(new Error("Invalid OTP"));
-  if (await checkOtpAge({ caller: "confirmEmail", user })) return next(new Error("OTP has expired, please request a new one"));
-  const newUser = await DBService.findByIdAndUpdate({ model: userModel, id: user._id, updatedData: { confirmEmail: Date.now(), $unset: { confirmEmailOtp: true, otpDate: true } } });
-  return successResponse({ res, message: "Email Verified Successfully", data: newUser });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Email verified |
+| `400` | Invalid OTP |
+| `400` | OTP expired (older than 2 minutes) |
+| `404` | Email not found or already verified |
 
 ---
 
-### `PATCH` `/auth/resend-otp` — Resend verification OTP
+#### `PATCH /auth/resend-otp` — Resend verification OTP
 
-**Request Body**
+**Body**
 ```json
 { "email": "ahmed@example.com" }
 ```
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | OTP resent successfully | `{ "message": "OTP resent successfully check your email" }` |
-| `400` | Called too soon, within the 2-min cooldown | `{ "err_message": "Please wait 2 mins before resending." }` |
-| `404` | Email not found or already confirmed | `{ "err_message": "Invalid Email or Already Confirmed" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const resendOtp = asyncHandler(async (req, res, next) => {
-  const { email } = req.body;
-  const user = await DBService.findOne({ model: userModel, filter: { email, confirmEmail: { $exists: false }, confirmEmailOtp: { $exists: true }, otpDate: { $exists: true } } });
-  if (!user) return next(new Error("Invalid Email or Already Confirmed", { cause: 404 }));
-  const now = Date.now();
-  const waitSecs = await checkOtpAge({ caller: "resend", user });
-  if (waitSecs) return next(new Error(`Please wait ${Math.ceil(waitSecs / 60)} mins before resending.`));
-  const { otp, hashedOtp: confirmEmailOtp } = await generateOtp();
-  await DBService.findByIdAndUpdate({ model: userModel, id: user._id, updatedData: { confirmEmailOtp, otpDate: now } });
-  emailEvent.emit("confirmEmail", { to: email, otp });
-  return successResponse({ res, message: "OTP resent successfully check your email" });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | OTP resent |
+| `400` | Within 2-min cooldown — returns seconds remaining |
+| `404` | Email not found or already confirmed |
 
 ---
 
-### `PATCH` `/auth/forget-password` — Request password reset OTP
+#### `PATCH /auth/forget-password` — Request password reset OTP
 
-**Request Body**
+**Body**
 ```json
 { "email": "ahmed@example.com" }
 ```
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Reset OTP sent to email | `{ "message": "Please check your email for the OTP to reset your password" }` |
-| `404` | Email not found, unverified, or Google account | `{ "err_message": "Email Not Found OR Not Verified" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const forgetPassword = asyncHandler(async (req, res, next) => {
-  const { email } = req.body;
-  const { hashedOtp, otp } = await generateOtp();
-  const user = await DBService.findOneAndUpdate({
-    model: userModel,
-    filter: { email, provider: providerEnum[0], deletedAt: { $exists: false }, confirmEmail: { $exists: true } },
-    updatedData: { forgetPasswordOtp: hashedOtp },
-  });
-  if (!user) return next(new Error("Email Not Found OR Not Verified", { cause: 404 }));
-  emailEvent.emit("forgetPassword", { to: email, otp, subject: "Forget Password OTP", title: "Reset Password" });
-  return successResponse({ res, message: "Please check your email for the OTP to reset your password" });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Reset OTP sent to email |
+| `404` | Email not found, unverified, or Google account |
 
 ---
 
-### `PATCH` `/auth/verify-forget-password` — Verify reset OTP
+#### `PATCH /auth/verify-forget-password` — Verify reset OTP
 
-**Request Body**
+**Body**
 ```json
-{
-  "email": "ahmed@example.com",
-  "otp": "123456"
-}
+{ "email": "ahmed@example.com", "otp": "123456" }
 ```
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | OTP verified, proceed to reset password | `{ "message": "OTP Verified Successfully, You Can Now Reset Your Password" }` |
-| `400` | OTP is wrong | `{ "err_message": "Invalid OTP" }` |
-| `404` | Email not found or no active reset request | `{ "err_message": "Email Not Found" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const verifyForgetPassword = asyncHandler(async (req, res, next) => {
-  const { email, otp } = req.body;
-  const user = await DBService.findOne({ model: userModel, filter: { email, provider: providerEnum[0], deletedAt: { $exists: false }, forgetPasswordOtp: { $exists: true }, confirmEmail: { $exists: true } } });
-  if (!user) return next(new Error("Email Not Found", { cause: 404 }));
-  if (!(await compareHash({ plainText: otp, hashed: user.forgetPasswordOtp }))) return next(new Error("Invalid OTP", { cause: 400 }));
-  return successResponse({ res, message: "OTP Verified Successfully, You Can Now Reset Your Password" });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | OTP verified — proceed to reset password |
+| `400` | Invalid OTP |
+| `404` | Email not found or no active reset request |
 
 ---
 
-### `PATCH` `/auth/reset-password` — Set new password
+#### `PATCH /auth/reset-password` — Set new password
 
-**Request Body**
+**Body**
 ```json
 {
   "email": "ahmed@example.com",
@@ -1075,108 +312,36 @@ export const verifyForgetPassword = asyncHandler(async (req, res, next) => {
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Password reset successfully | `{ "message": "Password Reset Successfully, You Can Now Login With Your New Password" }` |
-| `400` | OTP is wrong | `{ "err_message": "Invalid OTP" }` |
-| `404` | Email not found or no active reset request | `{ "err_message": "Email Not Found" }` |
-
-> ⚠️ On success, `changeCredentialsTime` is updated — all previously issued tokens are immediately invalidated.
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const resetPassword = asyncHandler(async (req, res, next) => {
-  const { email, otp, password } = req.body;
-  const user = await DBService.findOne({ model: userModel, filter: { email, provider: providerEnum[0], deletedAt: { $exists: false }, forgetPasswordOtp: { $exists: true }, confirmEmail: { $exists: true } } });
-  if (!user) return next(new Error("Email Not Found", { cause: 404 }));
-  if (!(await compareHash({ plainText: otp, hashed: user.forgetPasswordOtp }))) return next(new Error("Invalid OTP", { cause: 400 }));
-  await DBService.findByIdAndUpdate({
-    model: userModel, id: user._id,
-    updatedData: {
-      password: await generateHash({ plainText: password }),
-      changeCredentialsTime: new Date(),
-      $unset: { forgetPasswordOtp: 1 },
-    },
-  });
-  return successResponse({ res, message: "Password Reset Successfully, You Can Now Login With Your New Password" });
-});
-```
-
-</details>
-
----
-
-## 👤 User — `/user`
-
-<details>
-<summary><strong>Routes</strong></summary>
-
-<br/>
-
-```javascript
-router.get("/",                              auth({ accessRoles: endpoint.profile }),                                                         userController.getProfile);
-router.get("/refresh-token",                 authentication({ tokenType: tokenTypeEnum.refresh }),                                            userController.getNewLoginCredentials);
-router.get("/:userId",                       validation({ schema: validators.shareProfile }),                                                 userController.shareProfile);
-router.post("/logout",                       authentication(), validation({ schema: validators.logout }),                                     userController.logout);
-router.patch("/",                            authentication(), validation({ schema: validators.updateBasicProfile }),                         userController.updateBasicProfile);
-router.patch("/password",                    authentication(), validation({ schema: validators.updatePassword }),                             userController.updatePassword);
-router.patch("/profile-image",               authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"),         userController.uploadProfileImage);
-router.patch("/profile-cover-images",        authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 2),      userController.uploadProfileCoverImages);
-router.patch("/:userId/restore-account",     auth({ accessRoles: endpoint.restoreAccount }), validation({ schema: validators.restoreAccount }), userController.restoreAccount);
-router.delete("/:userId",                    auth({ accessRoles: endpoint.deleteAccount }), validation({ schema: validators.deleteAccount }),  userController.deleteAccount);
-router.delete("{/:userId}/freeze-account",   authentication(), validation({ schema: validators.freezeAccount }),                              userController.freezeAccount);
-```
-
-</details>
-
----
-
-### `GET` `/user` — Get current user profile 🔒
-
-**Headers**
-
-| Key | Value |
+| Status | Description |
 |---|---|
-| `Authorization` | `Bearer <access_token>` or `Admin <access_token>` |
+| `200` | Password reset — all existing sessions invalidated |
+| `400` | Invalid OTP |
+| `404` | Email not found or no active reset request |
 
-> 📝 Phone is stored AES-encrypted and decrypted before returning.
+> `changeCredentialsTime` is updated on success, immediately invalidating all previously issued tokens.
+
+---
+
+### User — `/user`
+
+#### `GET /user` 🔒 — Get current user profile
+
+Returns the authenticated user's profile. Phone is decrypted before returning.
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Profile returned | `{ "message": "Done", "data": { "_id": "...", "fullName": "Ahmed Essam", "email": "...", "gender": "male", "phone": "01012345678" } }` |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-| `401` | Password changed after token issued | `{ "err_message": "Invalid Credentials" }` |
-| `403` | Role not permitted | `{ "err_message": "Unauthorized Account" }` |
-| `404` | User no longer exists | `{ "err_message": "User Not Found" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const getProfile = asyncHandler(async (req, res, next) => {
-  req.user.phone = await genDecrypt({ cipherText: req.user.phone });
-  return successResponse({ res, data: req.user });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Profile returned |
+| `401` | Missing, revoked, or expired token |
+| `403` | Role not permitted |
+| `404` | User not found |
 
 ---
 
-### `PATCH` `/user` — Update basic profile 🔒
+#### `PATCH /user` 🔒 — Update basic profile
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-
-**Request Body** *(all fields optional)*
+**Body** *(all fields optional)*
 ```json
 {
   "fullName": "Ahmed Updated",
@@ -1187,37 +352,17 @@ export const getProfile = asyncHandler(async (req, res, next) => {
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Profile updated | `{ "message": "Done", "data": { ... } }` |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-| `404` | User no longer exists | `{ "err_message": "User Not Found" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const updateBasicProfile = asyncHandler(async (req, res, next) => {
-  if (req.body.phone) req.body.phone = await genEncrypt({ plainText: req.body.phone });
-  const user = await DBService.findByIdAndUpdate({ model: userModel, id: req.user._id, updatedData: { ...req.body } });
-  return user ? successResponse({ res, data: user }) : next(new Error("User Not Found", { cause: 404 }));
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Profile updated |
+| `401` | Invalid or revoked token |
+| `404` | User not found |
 
 ---
 
-### `PATCH` `/user/password` — Update password 🔒
+#### `PATCH /user/password` 🔒 — Update password
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-
-**Request Body**
+**Body**
 ```json
 {
   "oldPassword": "Ahmed@1234",
@@ -1226,375 +371,170 @@ export const updateBasicProfile = asyncHandler(async (req, res, next) => {
 }
 ```
 
-**Validation Rules**
-
-| Field | Rules |
+| `flag` value | Behavior |
 |---|---|
-| `oldPassword` | Required · strong-password format |
-| `newPassword` | Required · must differ from `oldPassword` · strong-password format |
-| `flag` | Optional · `"logout"` / `"logoutFromAll"` / `"stayLoggedIn"` (default) |
+| `stayLoggedIn` | Default — stay authenticated |
+| `logout` | Revoke current session token |
+| `logoutFromAll` | Invalidate all active sessions |
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Password changed | `{ "message": "Password Updated Successfully", "data": { ... } }` |
-| `400` | Old password does not match | `{ "err_message": "Invalid Old Password" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-| `404` | User no longer exists | `{ "err_message": "User Not Found" }` |
-| `409` | New password matches a previously used password | `{ "err_message": "New Password Should Not Be Same As Old Passwords" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const updatePassword = asyncHandler(async (req, res, next) => {
-  const match = await compareHash({ plainText: req.body.oldPassword, hashed: req.user.password });
-  if (!match) return next(new Error("Invalid Old Password", { cause: 400 }));
-  if (req.user.oldPasswords?.length) {
-    for (let hash of req.user.oldPasswords) {
-      if (await compareHash({ plainText: req.body.newPassword, hashed: hash }))
-        return next(new Error("New Password Should Not Be Same As Old Passwords", { cause: 409 }));
-    }
-  }
-  const hashedPassword = await generateHash({ plainText: req.body.newPassword });
-  const user = await DBService.findByIdAndUpdate({ model: userModel, id: req.user._id, updatedData: { password: hashedPassword, $push: { oldPasswords: req.user.password } } });
-  return user ? successResponse({ res, message: "Password Updated Successfully", data: user }) : next(new Error("User Not Found", { cause: 404 }));
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Password updated |
+| `400` | Old password doesn't match |
+| `409` | New password matches a previously used password |
+| `401` | Invalid or revoked token |
+| `404` | User not found |
 
 ---
 
-### `PATCH` `/user/profile-image` — Upload profile image 🔒
+#### `PATCH /user/profile-image` 🔒 — Upload profile image
 
-**Headers**
+**Content-Type:** `multipart/form-data`  
+**Field:** `image` — single file · accepted: `image/jpeg`, `image/gif`
 
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-| `Content-Type` | `multipart/form-data` |
-
-**Form Field:** `image` — single file · accepted types: `image/jpeg`, `image/gif`
+Replaces existing profile image on Cloudinary if one exists.
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Image uploaded, old image deleted from Cloudinary | `{ "message": "Done", "data": { ... } }` |
-| `400` | File MIME type not allowed | `{ "err_message": "Invalid File Type" }` |
-| `400` | File object failed Joi validation | `{ "err_message": "Validation Error" }` |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-
-<details>
-<summary><em>Controller — Cloud upload (active)</em></summary>
-
-```javascript
-export const uploadProfileImage = asyncHandler(async (req, res, next) => {
-  const { secure_url, public_id } = await uploadFile({ file: req.file, path: `user/${req.user._id}` });
-  const user = await DBService.findByIdAndUpdate({
-    model: userModel,
-    id: req.user._id,
-    updatedData: { picture: { secure_url, public_id } },
-    options: { returnDocument: "before" },
-  });
-  if (user?.picture?.public_id) await destroyFile({ public_id: user.picture.public_id });
-  return successResponse({ res, data: user });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Image uploaded |
+| `400` | Invalid file type |
+| `401` | Invalid or revoked token |
 
 ---
 
-### `PATCH` `/user/profile-cover-images` — Upload cover images 🔒
+#### `PATCH /user/profile-cover-images` 🔒 — Upload cover images
 
-**Headers**
+**Content-Type:** `multipart/form-data`  
+**Field:** `images` — 1–2 files · accepted: `image/jpeg`, `image/gif`
 
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-| `Content-Type` | `multipart/form-data` |
-
-**Form Field:** `images` — 1–2 files · accepted types: `image/jpeg`, `image/gif`
+Replaces all existing cover images on Cloudinary.
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Cover images uploaded, old ones deleted from Cloudinary | `{ "message": "Done", "data": { ... } }` |
-| `400` | File MIME type not allowed | `{ "err_message": "Invalid File Type" }` |
-| `400` | Files array failed Joi validation | `{ "err_message": "Validation Error" }` |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-
-<details>
-<summary><em>Controller — Cloud upload (active)</em></summary>
-
-```javascript
-export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
-  const attachments = await uploadFiles({ files: req.files, path: `user/${req.user._id}/cover` });
-  const user = await DBService.findByIdAndUpdate({
-    model: userModel,
-    id: req.user._id,
-    updatedData: { coverImages: attachments },
-    options: { returnDocument: "before" },
-  });
-  if (user?.coverImages?.length) await deleteResources({ public_ids: user.coverImages.map((img) => img.public_id) });
-  return successResponse({ res, data: user });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Cover images uploaded |
+| `400` | Invalid file type |
+| `401` | Invalid or revoked token |
 
 ---
 
-### `GET` `/user/refresh-token` — Rotate tokens 🔒
+#### `GET /user/refresh-token` 🔒 — Rotate token pair
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <refresh_token>` or `Admin <refresh_token>` |
+**Header:** `Authorization: Bearer <refresh_token>` or `Authorization: Admin <refresh_token>`
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | New token pair issued | `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }` |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Refresh token has been revoked | `{ "err_message": "Token-Revoked" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
-  const newCredentials = await generateLoginCredentials({ user: req.user });
-  return successResponse({ res, status: 200, data: newCredentials });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | New `access_token` and `refresh_token` returned |
+| `401` | Invalid or revoked refresh token |
 
 ---
 
-### `POST` `/user/logout` — Logout 🔒
+#### `POST /user/logout` 🔒 — Logout
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-
-**Request Body**
+**Body**
 ```json
 { "flag": "logout" }
 ```
 
-| Flag value | Behavior |
+| `flag` value | Behavior |
 |---|---|
-| `"logout"` | Revokes current token via JTI blacklist |
-| `"logoutFromAll"` | Sets `changeCredentialsTime` — invalidates all active sessions |
+| `logout` | Revokes current token via JTI blacklist |
+| `logoutFromAll` | Sets `changeCredentialsTime` — invalidates all active sessions |
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `201` | Logged out successfully | `{ "message": "Logged Out Successfully" }` |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const logout = asyncHandler(async (req, res, next) => {
-  const { flag } = req.body;
-  switch (flag) {
-    case logoutEnum.logoutFromAll:
-      await DBService.findByIdAndUpdate({ model: userModel, id: req.decoded._id, data: { changeCredentialsTime: new Date() } });
-      break;
-    default:
-      await createRevokeToken({ req });
-  }
-  return successResponse({ res, status: 201, message: "Logged Out Successfully" });
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `201` | Logged out |
+| `401` | Invalid or revoked token |
 
 ---
 
-### `GET` `/user/:userId` — View public profile
+#### `GET /user/:userId` — View public profile
 
-**Params**
+**Params:** `userId` — valid MongoDB ObjectId
 
-| Param | Rules |
-|---|---|
-| `userId` | Required · valid MongoDB ObjectId |
+Returns limited public fields: `firstName`, `lastName`, `fullName`, `email`.
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Public profile returned | `{ "message": "Done", "data": { "_id": "...", "firstName": "Ahmed", "lastName": "Essam", "fullName": "Ahmed Essam", "email": "..." } }` |
-| `400` | `userId` is not a valid ObjectId | `{ "err_message": "Validation Error" }` |
-| `404` | Account not found or not verified | `{ "err_message": "Invalid Account" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const shareProfile = asyncHandler(async (req, res, next) => {
-  const { userId } = req.params;
-  const user = await DBService.findOne({ model: userModel, filter: { _id: userId, confirmEmail: { $exists: true } }, projection: { firstName: 1, lastName: 1, fullName: 1, email: 1 } });
-  return user ? successResponse({ res, data: user }) : next(new Error("Invalid Account", { cause: 404 }));
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Public profile returned |
+| `400` | Invalid ObjectId |
+| `404` | Account not found or not verified |
 
 ---
 
-### `DELETE` `/user/:userId/freeze-account` — Soft-delete (freeze) account 🔒
+#### `DELETE /user/:userId/freeze-account` 🔒 — Soft-delete (freeze) account
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Bearer <access_token>` |
-
-**Params**
-
-| Param | Rules |
-|---|---|
-| `userId` | Optional · if provided, requires admin role |
-
-> Users can freeze their own account (omit `userId`). Admins can target any user by passing `userId`.
+Users can freeze their own account (omit `userId`). Admins can target any user by passing `userId`.
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `204` | Account frozen, no content | *(empty)* |
-| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-| `403` | Non-admin trying to freeze another user | `{ "err_message": "Unauthorized Access" }` |
-| `404` | User not found or already frozen | `{ "err_message": "User Not Found or Already Freezed Account" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const freezeAccount = asyncHandler(async (req, res, next) => {
-  const { userId } = req.params;
-  if (userId && req.user.role !== roleEnum[1]) return next(new Error("Unauthorized Access", { cause: 403 }));
-  const user = await DBService.findOneAndUpdate({
-    model: userModel,
-    filter: { _id: userId || req.user._id, deletedAt: { $exists: false } },
-    updatedData: { deletedAt: Date.now(), deletedBy: req.user._id, $unset: { restoredAt: 1, restoredBy: 1 } },
-  });
-  return user ? successResponse({ res, status: 204 }) : next(new Error("User Not Found or Already Freezed Account", { cause: 404 }));
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `204` | Account frozen |
+| `403` | Non-admin attempting to freeze another user |
+| `404` | User not found or already frozen |
+| `401` | Invalid or revoked token |
 
 ---
 
-### `PATCH` `/user/:userId/restore-account` — Restore frozen account 🔒 Admin only
+#### `PATCH /user/:userId/restore-account` 🔒 Admin — Restore frozen account
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Admin <access_token>` |
-
-**Params**
-
-| Param | Rules |
-|---|---|
-| `userId` | Required · valid MongoDB ObjectId |
+**Header:** `Authorization: Admin <access_token>`  
+**Params:** `userId` — valid MongoDB ObjectId
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `200` | Account restored | `{ "message": "Done" }` |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-| `403` | Not an admin | `{ "err_message": "Unauthorized Account" }` |
-| `404` | User not found or already active | `{ "err_message": "User Not Found or Already Restored Account" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const restoreAccount = asyncHandler(async (req, res, next) => {
-  const { userId } = req.params;
-  const user = await DBService.findOneAndUpdate({
-    model: userModel,
-    filter: { _id: userId, deletedAt: { $exists: true }, deletedBy: { $ne: userId } },
-    updatedData: { restoredAt: Date.now(), restoredBy: req.user._id, $unset: { deletedAt: 1, deletedBy: 1 } },
-  });
-  return user ? successResponse({ res }) : next(new Error("User Not Found or Already Restored Account", { cause: 404 }));
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `200` | Account restored |
+| `403` | Not an admin |
+| `404` | User not found or already active |
+| `401` | Invalid or revoked token |
 
 ---
 
-### `DELETE` `/user/:userId` — Hard delete account 🔒 Admin only
+#### `DELETE /user/:userId` 🔒 Admin — Hard delete account
 
-**Headers**
-
-| Key | Value |
-|---|---|
-| `Authorization` | `Admin <access_token>` |
-
-**Params**
-
-| Param | Rules |
-|---|---|
-| `userId` | Required · valid MongoDB ObjectId |
+**Header:** `Authorization: Admin <access_token>`  
+**Params:** `userId` — valid MongoDB ObjectId
 
 > Account must be frozen first (`deletedAt` must exist). Active accounts cannot be hard-deleted directly.
 
 **Responses**
 
-| Status | Description | Body |
-|---|---|---|
-| `204` | Account permanently deleted, no content | *(empty)* |
-| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
-| `403` | Not an admin | `{ "err_message": "Unauthorized Account" }` |
-| `404` | User not found or not frozen | `{ "err_message": "User Not Found or Already Deleted" }` |
-
-<details>
-<summary><em>Controller</em></summary>
-
-```javascript
-export const deleteAccount = asyncHandler(async (req, res, next) => {
-  const { userId } = req.params;
-  const user = await DBService.deleteOne({ model: userModel, filter: { _id: userId, deletedAt: { $exists: true } } });
-  return user.deletedCount ? successResponse({ res, status: 204 }) : next(new Error("User Not Found or Already Deleted", { cause: 404 }));
-});
-```
-
-</details>
+| Status | Description |
+|---|---|
+| `204` | Account permanently deleted |
+| `403` | Not an admin |
+| `404` | User not found or not frozen |
+| `401` | Invalid or revoked token |
 
 ---
 
-## 👨‍💻 Author
+## Roadmap
 
-**Ahmed Essam** — Node.js Backend Engineer
-📩 ahmedezsam@gmail.com
-🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
+- [ ] Rate limiting per IP (`express-rate-limit`)
+- [ ] Helmet security headers
+- [ ] Anonymous message sending (no auth required)
+- [ ] Message inbox — view, delete, reply
+- [ ] Block / report a message
+- [ ] Pagination for message inbox
+- [ ] Admin dashboard
 
 ---
 
-<div align="center">
-<sub>Built with focus, coffee, and clean architecture principles ☕</sub>
-</div>
+## Author
+
+**Ahmed Essam** — Node.js Backend Engineer  
+ahmedezsam@gmail.com · [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
