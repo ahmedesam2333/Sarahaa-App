@@ -7,7 +7,6 @@
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 <br/>
 
@@ -15,6 +14,22 @@
 > Users can send and receive anonymous messages with full auth, privacy controls, and hardened API security.
 
 </div>
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Database Models](#database-models)
+- [Security Design](#security-design)
+- [API Reference](#api-reference)
+  - [Auth — `/auth`](#auth----auth)
+  - [User — `/user`](#user----user)
+- [Roadmap](#roadmap)
+- [Author](#author)
 
 ---
 
@@ -32,29 +47,53 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 ## Features
 
-| # | Feature |
-|---|---|
-| 1 | Modular project structure |
-| 2 | Global async error handler + uniform JSON responses |
-| 3 | bcrypt password hashing with reuse prevention |
-| 4 | AES encryption on sensitive fields (phone) |
-| 5 | nanoid OTP generation with 2-min expiry |
-| 6 | JWT access & refresh token system with `jti` tracking |
-| 7 | Token revocation via JTI blacklist model |
-| 8 | Auth middleware — authentication, authorization, combined |
-| 9 | Centralized Joi validation middleware |
-| 10 | CORS configured for specific origins |
-| 11 | Google OAuth — unified signup/login |
-| 12 | OTP email verification with EventEmitter |
-| 13 | Forget password — 3-step OTP reset flow |
-| 14 | User profile — get, update, change password |
-| 15 | Profile image upload (Cloudinary) — replaces old on update |
-| 16 | Cover images upload — up to 2 (Cloudinary) |
-| 17 | Account soft-delete (freeze) & restore |
-| 18 | Hard delete — admin only |
-| 19 | Public share profile by userId |
-| 20 | Refresh token endpoint |
-| 21 | Logout — single session or all sessions |
+### 🔐 Authentication & Authorization
+
+| # | Feature | Details |
+|---|---|---|
+| 1 | JWT Access & Refresh Tokens | Dual-token system with unique `jti` per token |
+| 2 | Token Revocation | JTI blacklist model — revoke individual or all sessions |
+| 3 | Auth Middleware | Authentication, authorization, and combined middleware |
+| 4 | Google OAuth | Unified signup/login — no password required |
+| 5 | OTP Email Verification | nanoid OTP with 2-min expiry, sent via EventEmitter |
+| 6 | Forget Password | 3-step OTP-based reset flow |
+| 7 | Refresh Token Endpoint | Rotate access & refresh token pair |
+| 8 | Logout | Single session or all sessions |
+
+### 👤 User Profile Management
+
+| # | Feature | Details |
+|---|---|---|
+| 9 | Get Profile | Authenticated — phone decrypted on fetch |
+| 10 | Update Profile | Name, phone, gender |
+| 11 | Change Password | Stay logged in, logout, or logout from all |
+| 12 | Profile Image Upload | Cloudinary — auto-replaces previous on update |
+| 13 | Cover Images Upload | Cloudinary — up to 2 images |
+| 14 | Public Share Profile | View limited public fields by userId |
+
+### 🛡️ Security & Privacy
+
+| # | Feature | Details |
+|---|---|---|
+| 15 | bcrypt Password Hashing | With reuse prevention via `oldPasswords` |
+| 16 | AES Field Encryption | Phone numbers encrypted at rest |
+| 17 | Centralized Joi Validation | Middleware-level input validation |
+| 18 | CORS | Configured for specific allowed origins |
+
+### 🏗️ Architecture & Infrastructure
+
+| # | Feature | Details |
+|---|---|---|
+| 19 | Modular Project Structure | Auth, user, DB, middleware, utils separated cleanly |
+| 20 | Global Async Error Handler | Uniform JSON error responses across all routes |
+
+### 👨‍💼 Admin Controls
+
+| # | Feature | Details |
+|---|---|---|
+| 21 | Account Soft-Delete (Freeze) | Users can freeze own; admins can target any |
+| 22 | Account Restore | Admin only |
+| 23 | Hard Delete | Admin only — account must be frozen first |
 
 ---
 
@@ -295,6 +334,12 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 | `400` | OTP expired (older than 2 minutes) |
 | `404` | Email not found or already verified |
 
+**📧 Email Preview — OTP Verification**
+
+> The following email is sent to the user upon signup to confirm their email address.
+
+[![OTP Verification Email](https://drive.google.com/thumbnail?id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f&sz=w600)](https://drive.google.com/file/d/1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f/view?usp=sharing)
+
 </details>
 
 ---
@@ -387,6 +432,12 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 | `404` | Email not found or no active reset request |
 
 > `changeCredentialsTime` is updated on success, immediately invalidating all previously issued tokens.
+
+**📧 Email Preview — Password Reset**
+
+> The following email is sent to the user when a password reset is requested.
+
+[![Password Reset Email](https://drive.google.com/thumbnail?id=1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y&sz=w600)](https://drive.google.com/file/d/1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y/view?usp=sharing)
 
 </details>
 
@@ -491,6 +542,14 @@ Replaces the existing profile image on Cloudinary if one exists.
 | `200` | Image uploaded |
 | `400` | Invalid file type |
 | `401` | Invalid or revoked token |
+
+**🖼️ Cloudinary Preview — Profile Image & Cover Images**
+
+> The images below show an example of a profile image and cover images uploaded and served from Cloudinary.
+
+[![Profile & Cover Images on Cloudinary](https://drive.google.com/thumbnail?id=19LoatLss1WMcPIqdy8W1pn2REHPKj&sz=w600)](https://drive.google.com/file/d/19LoatLss1WMcPWciqdty8W1pn2REHPKj/view?usp=sharing)
+
+> 📎 [View full screenshot](https://drive.google.com/file/d/19LoatLss1WMcPWciqdty8W1pn2REHPKj/view?usp=sharing)
 
 </details>
 
