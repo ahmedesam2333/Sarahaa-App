@@ -55,7 +55,9 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | Validation | Joi |
 | Email | Nodemailer + Node EventEmitter |
 | OTP | nanoid (`customAlphabet`) |
-| File Upload | Multer (local & cloud) |
+| File Upload | Multer (local & Cloudinary cloud) |
+| Cloud Storage | Cloudinary |
+| Static Files | Express Static Middleware |
 | Config | dotenv |
 
 ---
@@ -82,13 +84,17 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | 14 | OTP email verification with EventEmitter | `utils/events/email.event.js` |
 | 15 | Forget password — OTP-based reset flow (3 steps) + `changeCredentialsTime` on reset | `modules/auth/auth.controller.js` |
 | 16 | User profile — get, update basic info, update password | `modules/user/user.controller.js` |
-| 17 | Profile image upload (Cloudinary) | `modules/user/user.controller.js` |
-| 18 | Cover images upload — up to 2 (Cloudinary) | `modules/user/user.controller.js` |
-| 19 | Account soft-delete (freeze) & restore | `modules/user/user.controller.js` |
-| 20 | Hard delete account (admin only) | `modules/user/user.controller.js` |
-| 21 | Public share profile by userId | `modules/user/user.controller.js` |
-| 22 | Refresh token endpoint | `modules/user/user.controller.js` |
-| 23 | Logout — single session (JWT blacklist) or all sessions (`changeCredentialsTime`) | `modules/user/user.controller.js` |
+| 17 | Local file upload — disk storage + file type validation | `utils/multer/local.multer.js` |
+| 18 | Cloud file upload — Cloudinary storage via Multer | `utils/multer/cloud.multer.js` |
+| 19 | Cloudinary integration — upload, destroy, bulk delete, folder prefix delete | `utils/multer/cloudinary.js` |
+| 20 | Profile image upload (Cloudinary) — replaces old image if exists | `modules/user/user.controller.js` |
+| 21 | Cover images upload — up to 2 (Cloudinary) — replaces old images if exist | `modules/user/user.controller.js` |
+| 22 | Static file serving via `express.static` | `app.controller.js` |
+| 23 | Account soft-delete (freeze) & restore | `modules/user/user.controller.js` |
+| 24 | Hard delete account (admin only) | `modules/user/user.controller.js` |
+| 25 | Public share profile by userId | `modules/user/user.controller.js` |
+| 26 | Refresh token endpoint | `modules/user/user.controller.js` |
+| 27 | Logout — single session (JWT blacklist) or all sessions (`changeCredentialsTime`) | `modules/user/user.controller.js` |
 
 ---
 
@@ -367,7 +373,113 @@ export const validation = ({ schema } = {}) => {
 </details>
 
 <details>
-<summary><strong>🔗 Google OAuth — signupOrLoginWithGmail</strong></summary>
+<summary><strong>📁 File Upload — Multer (Local + Cloud)</strong></summary>
+
+<br/>
+
+**`src/utils/multer/local.multer.js`** — Saves files to disk under `src/uploads/<customPath>/<userId>/`. Scopes uploads per user automatically when `req.user._id` is available. The final relative path is attached to `file.finalPath` for easy DB storage.
+
+```javascript
+import multer from "multer";
+import { nanoid } from "nanoid";
+import fs from "node:fs";
+import path from "node:path";
+
+export const fileValidation = {
+  image: ["image/jpeg", "image/gif"],
+  document: ["application/pdf", "application/msword"],
+};
+
+export const localFileUpload = ({ customPath = "general", validation = [] } = {}) => {
+  let basePath = `uploads/${customPath}`;
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      if (req.user?._id) basePath += `/${req.user._id}`;
+      const fullPath = path.resolve(`./src/${basePath}`);
+      if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
+      cb(null, path.resolve(fullPath));
+    },
+    filename: function (req, file, cb) {
+      const uniqueFileName = Date.now() + "___" + Math.random() + "__" + nanoid() + "__" + file.originalname;
+      file.finalPath = basePath + "/" + uniqueFileName;
+      cb(null, uniqueFileName);
+    },
+  });
+  const fileFilter = (req, file, cb) => {
+    if (!validation.includes(file.mimetype)) return cb(new Error("Invalid File Type"), false);
+    cb(null, true);
+  };
+  return multer({ dest: "./temp", fileFilter, storage });
+};
+```
+
+**`src/utils/multer/cloud.multer.js`** — Buffers file in `./temp` then hands it off to Cloudinary. No permanent local storage.
+
+```javascript
+import multer from "multer";
+
+export const cloudFileUpload = ({ validation = [] } = {}) => {
+  const storage = multer.diskStorage({});
+  const fileFilter = (req, file, cb) => {
+    if (!validation.includes(file.mimetype)) return cb(new Error("Invalid File Type"), false);
+    cb(null, true);
+  };
+  return multer({ dest: "./temp", fileFilter, storage });
+};
+```
+
+</details>
+
+<details>
+<summary><strong>☁️ Cloudinary Integration — upload, destroy, bulk delete</strong></summary>
+
+<br/>
+
+**`src/utils/multer/cloudinary.js`** — Wraps the Cloudinary v2 SDK. All uploads are namespaced under `{APPLICATION_NAME}/{path}` to keep assets organized per feature/user.
+
+```javascript
+import { v2 as cloudinary } from "cloudinary";
+
+export const cloud = () => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  return cloudinary;
+};
+
+// Upload single file
+export const uploadFile = async ({ file = {}, path = "general" } = {}) =>
+  await cloud().uploader.upload(file.path, { folder: `${process.env.APPLICATION_NAME}/${path}` });
+
+// Upload multiple files — returns [{ secure_url, public_id }]
+export const uploadFiles = async ({ files = [], path = "general" } = {}) => {
+  const attachments = [];
+  for (const file of files) {
+    const { secure_url, public_id } = await uploadFile({ file, path });
+    attachments.push({ secure_url, public_id });
+  }
+  return attachments;
+};
+
+// Destroy single asset by public_id
+export const destroyFile = async ({ public_id = "" } = {}) =>
+  await cloud().uploader.destroy(public_id);
+
+// Bulk delete by array of public_ids
+export const deleteResources = async ({ public_ids = [], options = { type: "upload", resource_type: "image" } } = {}) =>
+  await cloud().api.delete_resources(public_ids, options);
+
+// Delete all resources under a folder prefix
+export const deleteFolderByPrefix = async ({ prefix = "" } = {}) =>
+  await cloud().api.delete_resources_by_prefix(`${process.env.APPLICATION_NAME}/${prefix}`);
+```
+
+</details>
+
+
 
 <br/>
 
@@ -605,11 +717,11 @@ SARAHAA-APP/
 │   │   ├── auth/
 │   │   │   ├── auth.controller.js     (signup, login, gmail, confirmEmail, resendOtp, forgetPassword, verifyForgetPassword, resetPassword)
 │   │   │   ├── auth.routes.js
-│   │   │   └── auth.validation.js     (Joi schemas for all auth routes)
+│   │   │   └── auth.validation.js     (Joi schemas: signup, login, gmail, confirmEmail, resendOtp, forgetPassword, verifyForgetPassword, resetPassword)
 │   │   └── user/
 │   │       ├── user.controller.js     (getProfile, updateBasicProfile, updatePassword, uploadProfileImage, uploadProfileCoverImages, shareProfile, freezeAccount, restoreAccount, deleteAccount, getNewLoginCredentials, logout)
 │   │       ├── user.routes.js
-│   │       ├── user.validation.js     (Joi schemas for all user routes)
+│   │       ├── user.validation.js     (Joi schemas: shareProfile, logout, freezeAccount, restoreAccount, deleteAccount, updateBasicProfile, updatePassword, profileImage, coverImages)
 │   │       └── user.authorization.js  (role access lists per endpoint)
 │   ├── DB/
 │   │   ├── models/
@@ -623,8 +735,9 @@ SARAHAA-APP/
 │   └── utils/
 │       ├── response.js                (asyncHandler, successResponse, globalErrorHandling)
 │       ├── multer/
-│       │   ├── local.multer.js        (local file upload + fileValidation)
-│       │   └── cloud.multer.js        (Cloudinary file upload)
+│       │   ├── local.multer.js        (disk storage, per-user folder, fileValidation, file.finalPath)
+│       │   ├── cloud.multer.js        (temp-buffer storage for Cloudinary pipeline)
+│       │   └── cloudinary.js          (uploadFile, uploadFiles, destroyFile, deleteResources, deleteFolderByPrefix)
 │       ├── email/
 │       │   ├── send.email.js          (nodemailer transporter)
 │       │   └── templates/
@@ -636,7 +749,7 @@ SARAHAA-APP/
 │           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
 │           ├── otp.security.js        (nanoid generateOtp + checkOtpAge)
 │           └── token.security.js      (JWT gen/verify + decodeToken + generateLoginCredentials + createRevokeToken + role-aware signatures + logoutEnum)
-│   ├── app.controller.js              (Express app setup, CORS, route mounting, global error handler)
+│   ├── app.controller.js              (Express app setup, CORS, express.static, route mounting, global error handler)
 │   └── index.js                       (server entry point)
 ├── .gitignore
 ├── package.json
@@ -670,6 +783,69 @@ router.patch("/resend-otp",      validation({ schema: validators.resendOtp }),  
 router.patch("/forget-password", validation({ schema: validators.forgetPassword }),          authController.forgetPassword);
 router.patch("/verify-forget-password", validation({ schema: validators.verifyForgetPassword }), authController.verifyForgetPassword);
 router.patch("/reset-password",  validation({ schema: validators.resetPassword }),           authController.resetPassword);
+```
+
+</details>
+
+<details>
+<summary><strong>Validation Schemas — auth.validation.js</strong></summary>
+
+<br/>
+
+Schemas compose on top of each other using Joi's `.append()` to avoid repetition.
+
+```javascript
+export const signup = {
+  body: joi.object().keys({
+    fullName: generalFields.fullName.required(),
+    email: generalFields.email.required(),
+    password: generalFields.password.required(),
+    phone: generalFields.phone.required(),
+    gender: generalFields.gender,
+    role: generalFields.role,
+  }).required().options({ allowUnknown: false }),
+};
+
+export const login = {
+  body: joi.object().keys({
+    email: generalFields.email.required(),
+    password: generalFields.password.required(),
+  }).required().options({ allowUnknown: false }),
+};
+
+export const forgetPassword = {
+  body: joi.object().keys({ email: generalFields.email.required() })
+    .required().options({ allowUnknown: false }),
+};
+
+// verifyForgetPassword extends forgetPassword with otp
+export const verifyForgetPassword = {
+  body: forgetPassword.body.append({ otp: generalFields.otp.required() })
+    .required().options({ allowUnknown: false }),
+};
+
+// resetPassword extends verifyForgetPassword with new password
+export const resetPassword = {
+  body: verifyForgetPassword.body.append({ password: generalFields.password.required() })
+    .required().options({ allowUnknown: false }),
+};
+
+export const confirmEmail = {
+  body: joi.object().keys({
+    email: generalFields.email.required(),
+    otp: generalFields.otp.required(),
+  }).required().options({ allowUnknown: false }),
+};
+
+export const resendOtp = {
+  body: joi.object().keys({ email: generalFields.email.required() })
+    .required().options({ allowUnknown: false }),
+};
+
+export const signupOrLoginWithGmail = {
+  body: joi.object().keys({ idToken: generalFields.idToken.required() })
+    .required().options({ allowUnknown: false }),
+};
 ```
 
 </details>
@@ -1001,6 +1177,79 @@ router.delete("{/:userId}/freeze-account", authentication(), validation({ schema
 
 </details>
 
+<details>
+<summary><strong>Validation Schemas — user.validation.js</strong></summary>
+
+<br/>
+
+```javascript
+export const shareProfile = {
+  params: joi.object().keys({ userId: generalFields.id.required() }).required(),
+};
+
+export const logout = {
+  body: joi.object().keys({
+    flag: joi.string().valid(...Object.values(logoutEnum)).default(logoutEnum.stayLoggedIn),
+  }).required(),
+};
+
+export const freezeAccount = {
+  params: joi.object().keys({ userId: generalFields.id }),
+};
+
+export const restoreAccount = {
+  params: joi.object().keys({ userId: generalFields.id }).required(),
+};
+
+export const deleteAccount = {
+  params: joi.object().keys({ userId: generalFields.id }).required(),
+};
+
+export const updateBasicProfile = {
+  body: joi.object().keys({
+    fullName: generalFields.fullName,
+    phone: generalFields.phone,
+    gender: generalFields.gender,
+  }).required(),
+};
+
+// updatePassword extends logout body with oldPassword + newPassword (must differ)
+export const updatePassword = {
+  body: logout.body.append({
+    oldPassword: generalFields.password.required(),
+    newPassword: generalFields.password.not(joi.ref("oldPassword")).required(),
+  }).required(),
+};
+
+export const profileImage = {
+  file: joi.object().keys({
+    fieldname: joi.string().valid("image").required(),
+    originalname: joi.string().required(),
+    encoding: joi.string().required(),
+    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
+    destination: joi.string().required(),
+    filename: joi.string().required(),
+    path: joi.string().required(),
+    size: joi.number().positive().required(),
+  }).required(),
+};
+
+export const coverImages = {
+  files: joi.array().items({
+    fieldname: joi.string().valid("images").required(),
+    originalname: joi.string().required(),
+    encoding: joi.string().required(),
+    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
+    destination: joi.string().required(),
+    filename: joi.string().required(),
+    path: joi.string().required(),
+    size: joi.number().positive().required(),
+  }).min(1).max(2).required(),
+};
+```
+
+</details>
+
 ---
 
 <details>
@@ -1137,11 +1386,72 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Bearer <access_token>`  
 **Content-Type:** `multipart/form-data`  
-**Form Field:** `image` — single image file
+**Form Field:** `image` — single image file (`image/jpeg` or `image/gif`)
+
+**Validation schema — `validators.profileImage`:**
+```javascript
+export const profileImage = {
+  file: joi.object().keys({
+    fieldname: joi.string().valid("image").required(),
+    originalname: joi.string().required(),
+    encoding: joi.string().required(),
+    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
+    destination: joi.string().required(),
+    filename: joi.string().required(),
+    path: joi.string().required(),
+    size: joi.number().positive().required(),
+  }).required(),
+};
+```
 
 **Response `200`:** `{ "message": "Done", "data": { ... } }`  
-**Response `400`:** `{ "err_message": "Validation Error" }` — invalid file type  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection  
+**Response `400`:** `{ "err_message": "Validation Error" }` — Joi file object validation  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+
+<details>
+<summary><em>Controller — Cloud upload (active)</em></summary>
+
+```javascript
+export const uploadProfileImage = asyncHandler(async (req, res, next) => {
+  const { secure_url, public_id } = await uploadFile({
+    file: req.file,
+    path: `user/${req.user._id}`,
+  });
+  // returnDocument: "before" so we still have the old public_id to destroy
+  const user = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: req.user._id,
+    updatedData: { picture: { secure_url, public_id } },
+    options: { returnDocument: "before" },
+  });
+  if (user?.picture?.public_id) {
+    await destroyFile({ public_id: user.picture.public_id });
+  }
+  return successResponse({ res, data: user });
+});
+```
+
+</details>
+
+<details>
+<summary><em>Controller — Local upload (alternative)</em></summary>
+
+```javascript
+// Uses localFileUpload() middleware instead of cloudFileUpload()
+// picture is stored as a file path string instead of { secure_url, public_id }
+export const uploadProfileImage = asyncHandler(async (req, res, next) => {
+  const user = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: req.user._id,
+    updatedData: { picture: req.file.finalPath },
+  });
+  return successResponse({ res, data: user });
+});
+```
+
+</details>
 
 </details>
 
@@ -1154,11 +1464,72 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Bearer <access_token>`  
 **Content-Type:** `multipart/form-data`  
-**Form Field:** `images` — up to 2 image files
+**Form Field:** `images` — 1–2 image files (`image/jpeg` or `image/gif`)
+
+**Validation schema — `validators.coverImages`:**
+```javascript
+export const coverImages = {
+  files: joi.array().items({
+    fieldname: joi.string().valid("images").required(),
+    originalname: joi.string().required(),
+    encoding: joi.string().required(),
+    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
+    destination: joi.string().required(),
+    filename: joi.string().required(),
+    path: joi.string().required(),
+    size: joi.number().positive().required(),
+  }).min(1).max(2).required(),
+};
+```
 
 **Response `200`:** `{ "message": "Done", "data": { ... } }`  
-**Response `400`:** `{ "err_message": "Validation Error" }` — invalid file type  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection  
+**Response `400`:** `{ "err_message": "Validation Error" }` — Joi files array validation  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+
+<details>
+<summary><em>Controller — Cloud upload (active)</em></summary>
+
+```javascript
+export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
+  const attachments = await uploadFiles({
+    files: req.files,
+    path: `user/${req.user._id}/cover`,
+  });
+  // returnDocument: "before" so we still have the old public_ids to destroy
+  const user = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: req.user._id,
+    updatedData: { coverImages: attachments },
+    options: { returnDocument: "before" },
+  });
+  if (user?.coverImages?.length) {
+    await deleteResources({ public_ids: user.coverImages.map((img) => img.public_id) });
+  }
+  return successResponse({ res, data: user });
+});
+```
+
+</details>
+
+<details>
+<summary><em>Controller — Local upload (alternative)</em></summary>
+
+```javascript
+// Uses localFileUpload() middleware instead of cloudFileUpload()
+// coverImages is stored as an array of file path strings
+export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
+  const user = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: req.user._id,
+    updatedData: { coverImages: req.files?.map((file) => file.finalPath) },
+  });
+  return successResponse({ res, data: user });
+});
+```
+
+</details>
 
 </details>
 
