@@ -450,11 +450,9 @@ export const cloud = () => {
   return cloudinary;
 };
 
-// Upload single file
 export const uploadFile = async ({ file = {}, path = "general" } = {}) =>
   await cloud().uploader.upload(file.path, { folder: `${process.env.APPLICATION_NAME}/${path}` });
 
-// Upload multiple files — returns [{ secure_url, public_id }]
 export const uploadFiles = async ({ files = [], path = "general" } = {}) => {
   const attachments = [];
   for (const file of files) {
@@ -464,18 +462,19 @@ export const uploadFiles = async ({ files = [], path = "general" } = {}) => {
   return attachments;
 };
 
-// Destroy single asset by public_id
 export const destroyFile = async ({ public_id = "" } = {}) =>
   await cloud().uploader.destroy(public_id);
 
-// Bulk delete by array of public_ids
 export const deleteResources = async ({ public_ids = [], options = { type: "upload", resource_type: "image" } } = {}) =>
   await cloud().api.delete_resources(public_ids, options);
 
-// Delete all resources under a folder prefix
 export const deleteFolderByPrefix = async ({ prefix = "" } = {}) =>
   await cloud().api.delete_resources_by_prefix(`${process.env.APPLICATION_NAME}/${prefix}`);
 ```
+
+**Cloudinary Dashboard — Profile & Cover Image Uploads:**
+
+![Cloudinary Upload Preview](https://drive.google.com/uc?export=view&id=19LoatLss1WMcPWciqdty8W1pn2REHPKj)
 
 </details>
 
@@ -718,42 +717,42 @@ SARAHAA-APP/
 ├── src/
 │   ├── modules/
 │   │   ├── auth/
-│   │   │   ├── auth.controller.js     (signup, login, gmail, confirmEmail, resendOtp, forgetPassword, verifyForgetPassword, resetPassword)
+│   │   │   ├── auth.controller.js
 │   │   │   ├── auth.routes.js
-│   │   │   └── auth.validation.js     (Joi schemas: signup, login, gmail, confirmEmail, resendOtp, forgetPassword, verifyForgetPassword, resetPassword)
+│   │   │   └── auth.validation.js
 │   │   └── user/
-│   │       ├── user.controller.js     (getProfile, updateBasicProfile, updatePassword, uploadProfileImage, uploadProfileCoverImages, shareProfile, freezeAccount, restoreAccount, deleteAccount, getNewLoginCredentials, logout)
+│   │       ├── user.controller.js
 │   │       ├── user.routes.js
-│   │       ├── user.validation.js     (Joi schemas: shareProfile, logout, freezeAccount, restoreAccount, deleteAccount, updateBasicProfile, updatePassword, profileImage, coverImages)
-│   │       └── user.authorization.js  (role access lists per endpoint)
+│   │       ├── user.validation.js
+│   │       └── user.authorization.js
 │   ├── DB/
 │   │   ├── models/
-│   │   │   ├── user.model.js          (full schema: auth fields, OTP fields, soft-delete fields, oldPasswords, picture/coverImages, changeCredentialsTime)
-│   │   │   └── token.model.js         (revoked JWT blacklist: jti, expiresIn, userId)
-│   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate, findOneAndUpdate, deleteOne)
+│   │   │   ├── user.model.js
+│   │   │   └── token.model.js
+│   │   ├── db.service.js
 │   │   └── connection.js
 │   ├── middleware/
-│   │   ├── auth.middleware.js         (authentication, authorization, auth — attaches req.user + req.decoded)
-│   │   └── validation.middleware.js   (generalFields + centralized Joi validation)
+│   │   ├── auth.middleware.js
+│   │   └── validation.middleware.js
 │   └── utils/
-│       ├── response.js                (asyncHandler, successResponse, globalErrorHandling)
+│       ├── response.js
 │       ├── multer/
-│       │   ├── local.multer.js        (disk storage, per-user folder, fileValidation, file.finalPath)
-│       │   ├── cloud.multer.js        (temp-buffer storage for Cloudinary pipeline)
-│       │   └── cloudinary.js          (uploadFile, uploadFiles, destroyFile, deleteResources, deleteFolderByPrefix)
+│       │   ├── local.multer.js
+│       │   ├── cloud.multer.js
+│       │   └── cloudinary.js
 │       ├── email/
-│       │   ├── send.email.js          (nodemailer transporter)
+│       │   ├── send.email.js
 │       │   └── templates/
-│       │       └── Email.template.js  (shared template for confirmEmail + forgetPassword)
+│       │       └── Email.template.js
 │       ├── events/
-│       │   └── email.event.js         (EventEmitter: confirmEmail + forgetPassword events)
+│       │   └── email.event.js
 │       └── security/
-│           ├── hash.security.js       (bcrypt generateHash + compareHash)
-│           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
-│           ├── otp.security.js        (nanoid generateOtp + checkOtpAge)
-│           └── token.security.js      (JWT gen/verify + decodeToken + generateLoginCredentials + createRevokeToken + role-aware signatures + logoutEnum)
-│   ├── app.controller.js              (Express app setup, CORS, express.static, route mounting, global error handler)
-│   └── index.js                       (server entry point)
+│           ├── hash.security.js
+│           ├── encrypt.security.js
+│           ├── otp.security.js
+│           └── token.security.js
+│   ├── app.controller.js
+│   └── index.js
 ├── .gitignore
 ├── package.json
 ├── package-lock.json
@@ -765,51 +764,38 @@ SARAHAA-APP/
 ## 📖 API Documentation
 
 > **Base URL:** `http://localhost:5000`
+>
 > 🔒 Protected routes require `Authorization: Bearer <token>` or `Authorization: Admin <token>` header.
-> ❌ All routes return `400 Validation Error` on invalid input — omitted per endpoint for brevity.
+>
+> ❌ All routes return a `400 Validation Error` on invalid input — omitted per endpoint for brevity.
 
 ---
 
 ## 🔑 Auth — `/auth`
 
 <details>
-<summary><strong>Routes — auth.routes.js</strong></summary>
+<summary><strong>Routes</strong></summary>
 
 <br/>
 
 ```javascript
-router.post("/signup",                  validation({ schema: validators.signup }),                       authController.signup);
-router.post("/login",                   validation({ schema: validators.login }),                        authController.login);
-router.post("/gmail",                   validation({ schema: validators.signupOrLoginWithGmail }),       authController.signupOrLoginWithGmail);
-router.patch("/confirm-email",          validation({ schema: validators.confirmEmail }),                 authController.confirmEmail);
-router.patch("/resend-otp",             validation({ schema: validators.resendOtp }),                    authController.resendOtp);
-router.patch("/forget-password",        validation({ schema: validators.forgetPassword }),               authController.forgetPassword);
-router.patch("/verify-forget-password", validation({ schema: validators.verifyForgetPassword }),         authController.verifyForgetPassword);
-router.patch("/reset-password",         validation({ schema: validators.resetPassword }),                authController.resetPassword);
+router.post("/signup",                  validation({ schema: validators.signup }),                     authController.signup);
+router.post("/login",                   validation({ schema: validators.login }),                      authController.login);
+router.post("/gmail",                   validation({ schema: validators.signupOrLoginWithGmail }),     authController.signupOrLoginWithGmail);
+router.patch("/confirm-email",          validation({ schema: validators.confirmEmail }),               authController.confirmEmail);
+router.patch("/resend-otp",             validation({ schema: validators.resendOtp }),                  authController.resendOtp);
+router.patch("/forget-password",        validation({ schema: validators.forgetPassword }),             authController.forgetPassword);
+router.patch("/verify-forget-password", validation({ schema: validators.verifyForgetPassword }),       authController.verifyForgetPassword);
+router.patch("/reset-password",         validation({ schema: validators.resetPassword }),              authController.resetPassword);
 ```
 
 </details>
 
 ---
 
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/signup</strong> — Register a new user</summary>
+### `POST` `/auth/signup` — Register a new user
 
-<br/>
-
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  fullName: generalFields.fullName.required(),  // first + last (2–20 chars each)
-  email:    generalFields.email.required(),     // valid TLD: com/net/org/io/gov/edu
-  password: generalFields.password.required(),  // min 8, uppercase + lowercase + number + @$!%*?&
-  phone:    generalFields.phone.required(),     // Egyptian: 010/011/012/015
-  gender:   generalFields.gender,              // optional: "male" | "female"
-  role:     generalFields.role,                // optional: "user" | "admin"
-}).required().options({ allowUnknown: false })
-```
-
-**Request Body:**
+**Request Body**
 ```json
 {
   "fullName": "Ahmed Essam",
@@ -821,12 +807,23 @@ body: joi.object().keys({
 }
 ```
 
-**Response `201`:**
-```json
-{ "message": "User created successfully and Please check your email to verify" }
-```
+**Validation Rules**
 
-**Response `409`:** `{ "err_message": "Email already exists" }`
+| Field | Rules |
+|---|---|
+| `fullName` | Required · first + last name · each part 2–20 chars |
+| `email` | Required · valid TLD: `com/net/org/io/gov/edu` |
+| `password` | Required · min 8 chars · uppercase + lowercase + digit + special char |
+| `phone` | Required · Egyptian numbers only: `010/011/012/015` |
+| `gender` | Optional · `"male"` or `"female"` |
+| `role` | Optional · `"user"` or `"admin"` |
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `201` | User created, OTP sent to email | `{ "message": "User created successfully and Please check your email to verify" }` |
+| `409` | Email already registered | `{ "err_message": "Email already exists" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -850,24 +847,11 @@ export const signup = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/login</strong> — Login with credentials</summary>
+### `POST` `/auth/login` — Login with credentials
 
-<br/>
-
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  email:    generalFields.email.required(),
-  password: generalFields.password.required(),
-}).required().options({ allowUnknown: false })
-```
-
-**Request Body:**
+**Request Body**
 ```json
 {
   "email": "ahmed@example.com",
@@ -875,19 +859,16 @@ body: joi.object().keys({
 }
 ```
 
-**Response `200`:**
-```json
-{
-  "message": "User Logged in successfully",
-  "data": { "access_token": "...", "refresh_token": "..." }
-}
-```
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `200` | Login successful | `{ "message": "User Logged in successfully", "data": { "access_token": "...", "refresh_token": "..." } }` |
+| `401` | Email not verified | `{ "err_message": "Please verify your account" }` |
+| `401` | Account is frozen/deleted | `{ "err_message": "this Account is deleted" }` |
+| `404` | Wrong email or password | `{ "err_message": "Invalid email or password" }` |
 
 > 🔑 `Bearer` prefix for users · `Admin` prefix for admins — resolved via `generateLoginCredentials`
-
-**Response `401`:** `{ "err_message": "Please verify your account" }`
-**Response `401`:** `{ "err_message": "this Account is deleted" }`
-**Response `404`:** `{ "err_message": "Invalid email or password" }`
 
 <details>
 <summary><em>Controller</em></summary>
@@ -915,53 +896,44 @@ export const login = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
+---
+
+### `POST` `/auth/gmail` — Signup or Login with Google
+
+**Request Body**
+```json
+{ "idToken": "<google_id_token>" }
+```
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `201` | New Google account created | `{ "message": "User created successfully", "data": { "access_token": "...", "refresh_token": "..." } }` |
+| `200` | Existing Google user logged in | `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }` |
+| `401` | Google email not verified | `{ "err_message": "Email Not Verified" }` |
+| `409` | Email registered under system provider | `{ "err_message": "Email Exist" }` |
 
 ---
 
-<details>
-<summary><code>POST</code> &nbsp; <strong>/auth/gmail</strong> — Signup or Login with Google</summary>
+### `PATCH` `/auth/confirm-email` — Verify email with OTP
 
-<br/>
-
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  idToken: generalFields.idToken.required(),
-}).required().options({ allowUnknown: false })
+**Request Body**
+```json
+{
+  "email": "ahmed@example.com",
+  "otp": "123456"
+}
 ```
 
-**Request Body:** `{ "idToken": "<google_id_token>" }`
+**Responses**
 
-**Response `201`** (new user): `{ "message": "User created successfully", "data": { "access_token": "...", "refresh_token": "..." } }`
-**Response `200`** (existing user): `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`
-**Response `401`:** `{ "err_message": "Email Not Verified" }`
-**Response `409`:** `{ "err_message": "Email Exist" }`
-
-> See [Google OAuth — Unified Signup / Login](#-implementation-details) in Implementation Details for the full controller code.
-
-</details>
-
----
-
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/auth/confirm-email</strong> — Verify email with OTP</summary>
-
-<br/>
-
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  email: generalFields.email.required(),
-  otp:   generalFields.otp.required(),  // 6-digit numeric string
-}).required().options({ allowUnknown: false })
-```
-
-**Request Body:** `{ "email": "ahmed@example.com", "otp": "123456" }`
-
-**Response `200`:** `{ "message": "Email Verified Successfully", "data": { ... } }`
-**Response `404`:** `{ "err_message": "Invalid Email or Has Been Confirmed Before" }`
-**Response `400`:** `{ "err_message": "Invalid OTP" }` or `{ "err_message": "OTP has expired, please request a new one" }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | Email verified successfully | `{ "message": "Email Verified Successfully", "data": { ... } }` |
+| `400` | OTP is wrong | `{ "err_message": "Invalid OTP" }` |
+| `400` | OTP is older than 2 minutes | `{ "err_message": "OTP has expired, please request a new one" }` |
+| `404` | Email not found or already verified | `{ "err_message": "Invalid Email or Has Been Confirmed Before" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -980,27 +952,22 @@ export const confirmEmail = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/auth/resend-otp</strong> — Resend verification OTP</summary>
+### `PATCH` `/auth/resend-otp` — Resend verification OTP
 
-<br/>
-
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  email: generalFields.email.required(),
-}).required().options({ allowUnknown: false })
+**Request Body**
+```json
+{ "email": "ahmed@example.com" }
 ```
 
-**Request Body:** `{ "email": "ahmed@example.com" }`
+**Responses**
 
-**Response `200`:** `{ "message": "OTP resent successfully check your email" }`
-**Response `404`:** `{ "err_message": "Invalid Email or Already Confirmed" }`
-**Response `400`:** `{ "err_message": "Please wait 2 mins before resending." }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | OTP resent successfully | `{ "message": "OTP resent successfully check your email" }` |
+| `400` | Called too soon, within the 2-min cooldown | `{ "err_message": "Please wait 2 mins before resending." }` |
+| `404` | Email not found or already confirmed | `{ "err_message": "Invalid Email or Already Confirmed" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1022,28 +989,21 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/auth/forget-password</strong> — Request password reset OTP</summary>
+### `PATCH` `/auth/forget-password` — Request password reset OTP
 
-<br/>
-
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  email: generalFields.email.required(),
-}).required().options({ allowUnknown: false })
+**Request Body**
+```json
+{ "email": "ahmed@example.com" }
 ```
 
-**Request Body:** `{ "email": "ahmed@example.com" }`
+**Responses**
 
-**Response `200`:** `{ "message": "Please check your email for the OTP to reset your password" }`
-**Response `404`:** `{ "err_message": "Email Not Found OR Not Verified" }`
-
-> 📧 Emits `forgetPassword` event — sends hashed OTP stored in `forgetPasswordOtp`.
+| Status | Description | Body |
+|---|---|---|
+| `200` | Reset OTP sent to email | `{ "message": "Please check your email for the OTP to reset your password" }` |
+| `404` | Email not found, unverified, or Google account | `{ "err_message": "Email Not Found OR Not Verified" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1065,28 +1025,25 @@ export const forgetPassword = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/auth/verify-forget-password</strong> — Verify reset OTP</summary>
+### `PATCH` `/auth/verify-forget-password` — Verify reset OTP
 
-<br/>
-
-**Validation Schema:**
-```javascript
-// Extends forgetPassword schema with otp
-body: forgetPassword.body.append({
-  otp: generalFields.otp.required(),
-}).required().options({ allowUnknown: false })
+**Request Body**
+```json
+{
+  "email": "ahmed@example.com",
+  "otp": "123456"
+}
 ```
 
-**Request Body:** `{ "email": "ahmed@example.com", "otp": "123456" }`
+**Responses**
 
-**Response `200`:** `{ "message": "OTP Verified Successfully, You Can Now Reset Your Password" }`
-**Response `404`:** `{ "err_message": "Email Not Found" }`
-**Response `400`:** `{ "err_message": "Invalid OTP" }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | OTP verified, proceed to reset password | `{ "message": "OTP Verified Successfully, You Can Now Reset Your Password" }` |
+| `400` | OTP is wrong | `{ "err_message": "Invalid OTP" }` |
+| `404` | Email not found or no active reset request | `{ "err_message": "Email Not Found" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1103,28 +1060,26 @@ export const verifyForgetPassword = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/auth/reset-password</strong> — Set new password</summary>
+### `PATCH` `/auth/reset-password` — Set new password
 
-<br/>
-
-**Validation Schema:**
-```javascript
-// Extends verifyForgetPassword schema with new password
-body: verifyForgetPassword.body.append({
-  password: generalFields.password.required(),  // must satisfy strong-password rules
-}).required().options({ allowUnknown: false })
+**Request Body**
+```json
+{
+  "email": "ahmed@example.com",
+  "otp": "123456",
+  "password": "NewPass@5678"
+}
 ```
 
-**Request Body:** `{ "email": "ahmed@example.com", "otp": "123456", "password": "NewPass@5678" }`
+**Responses**
 
-**Response `200`:** `{ "message": "Password Reset Successfully, You Can Now Login With Your New Password" }`
-**Response `404`:** `{ "err_message": "Email Not Found" }`
-**Response `400`:** `{ "err_message": "Invalid OTP" }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | Password reset successfully | `{ "message": "Password Reset Successfully, You Can Now Login With Your New Password" }` |
+| `400` | OTP is wrong | `{ "err_message": "Invalid OTP" }` |
+| `404` | Email not found or no active reset request | `{ "err_message": "Email Not Found" }` |
 
 > ⚠️ On success, `changeCredentialsTime` is updated — all previously issued tokens are immediately invalidated.
 
@@ -1151,57 +1106,53 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
 ## 👤 User — `/user`
 
 <details>
-<summary><strong>Routes — user.routes.js</strong></summary>
+<summary><strong>Routes</strong></summary>
 
 <br/>
 
 ```javascript
-router.get("/",                              auth({ accessRoles: endpoint.profile }),                                                        userController.getProfile);
-router.get("/refresh-token",                 authentication({ tokenType: tokenTypeEnum.refresh }),                                           userController.getNewLoginCredentials);
-router.get("/:userId",                       validation({ schema: validators.shareProfile }),                                                userController.shareProfile);
-router.post("/logout",                       authentication(), validation({ schema: validators.logout }),                                    userController.logout);
-router.patch("/",                            authentication(), validation({ schema: validators.updateBasicProfile }),                        userController.updateBasicProfile);
-router.patch("/password",                    authentication(), validation({ schema: validators.updatePassword }),                            userController.updatePassword);
-router.patch("/profile-image",               authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"),        userController.uploadProfileImage);
-router.patch("/profile-cover-images",        authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 2),     userController.uploadProfileCoverImages);
+router.get("/",                              auth({ accessRoles: endpoint.profile }),                                                         userController.getProfile);
+router.get("/refresh-token",                 authentication({ tokenType: tokenTypeEnum.refresh }),                                            userController.getNewLoginCredentials);
+router.get("/:userId",                       validation({ schema: validators.shareProfile }),                                                 userController.shareProfile);
+router.post("/logout",                       authentication(), validation({ schema: validators.logout }),                                     userController.logout);
+router.patch("/",                            authentication(), validation({ schema: validators.updateBasicProfile }),                         userController.updateBasicProfile);
+router.patch("/password",                    authentication(), validation({ schema: validators.updatePassword }),                             userController.updatePassword);
+router.patch("/profile-image",               authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"),         userController.uploadProfileImage);
+router.patch("/profile-cover-images",        authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 2),      userController.uploadProfileCoverImages);
 router.patch("/:userId/restore-account",     auth({ accessRoles: endpoint.restoreAccount }), validation({ schema: validators.restoreAccount }), userController.restoreAccount);
-router.delete("/:userId",                    auth({ accessRoles: endpoint.deleteAccount }), validation({ schema: validators.deleteAccount }), userController.deleteAccount);
-router.delete("{/:userId}/freeze-account",   authentication(), validation({ schema: validators.freezeAccount }),                             userController.freezeAccount);
+router.delete("/:userId",                    auth({ accessRoles: endpoint.deleteAccount }), validation({ schema: validators.deleteAccount }),  userController.deleteAccount);
+router.delete("{/:userId}/freeze-account",   authentication(), validation({ schema: validators.freezeAccount }),                              userController.freezeAccount);
 ```
 
 </details>
 
 ---
 
-<details>
-<summary><code>GET</code> &nbsp; <strong>/user</strong> — Get current user profile 🔒</summary>
+### `GET` `/user` — Get current user profile 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <access_token>` or `Authorization: Admin <access_token>`
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` or `Admin <access_token>` |
 
-**Response `200`:**
-```json
-{
-  "message": "Done",
-  "data": { "_id": "...", "fullName": "Ahmed Essam", "email": "ahmed@example.com", "gender": "male", "phone": "01012345678" }
-}
-```
+> 📝 Phone is stored AES-encrypted and decrypted before returning.
 
-> 📝 Phone is stored AES-encrypted and decrypted on retrieval before returning.
+**Responses**
 
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
-**Response `401`:** `{ "err_message": "Invalid Credentials" }`
-**Response `403`:** `{ "err_message": "Unauthorized Account" }`
-**Response `404`:** `{ "err_message": "User Not Found" }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | Profile returned | `{ "message": "Done", "data": { "_id": "...", "fullName": "Ahmed Essam", "email": "...", "gender": "male", "phone": "01012345678" } }` |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
+| `401` | Password changed after token issued | `{ "err_message": "Invalid Credentials" }` |
+| `403` | Role not permitted | `{ "err_message": "Unauthorized Account" }` |
+| `404` | User no longer exists | `{ "err_message": "User Not Found" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1215,27 +1166,17 @@ export const getProfile = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/user</strong> — Update basic profile 🔒</summary>
+### `PATCH` `/user` — Update basic profile 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <access_token>`
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` |
 
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  fullName: generalFields.fullName,   // optional
-  phone:    generalFields.phone,      // optional — will be AES-encrypted before save
-  gender:   generalFields.gender,     // optional: "male" | "female"
-}).required()
-```
-
-**Request Body** *(all fields optional)*:
+**Request Body** *(all fields optional)*
 ```json
 {
   "fullName": "Ahmed Updated",
@@ -1244,10 +1185,14 @@ body: joi.object().keys({
 }
 ```
 
-**Response `200`:** `{ "message": "Done", "data": { ... } }`
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
-**Response `404`:** `{ "err_message": "User Not Found" }`
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `200` | Profile updated | `{ "message": "Done", "data": { ... } }` |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
+| `404` | User no longer exists | `{ "err_message": "User Not Found" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1262,39 +1207,42 @@ export const updateBasicProfile = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/user/password</strong> — Update password 🔒</summary>
+### `PATCH` `/user/password` — Update password 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <access_token>`
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` |
 
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  oldPassword: generalFields.password.required(),
-  newPassword: generalFields.password.not(joi.ref("oldPassword")).required(),  // must differ from oldPassword
-  flag:        joi.string().valid(...Object.values(logoutEnum)).default(logoutEnum.stayLoggedIn),
-}).required()
-```
-
-**Request Body:**
+**Request Body**
 ```json
 {
   "oldPassword": "Ahmed@1234",
-  "newPassword": "NewPass@5678"
+  "newPassword": "NewPass@5678",
+  "flag": "stayLoggedIn"
 }
 ```
 
-**Response `200`:** `{ "message": "Password Updated Successfully", "data": { ... } }`
-**Response `400`:** `{ "err_message": "Invalid Old Password" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
-**Response `404`:** `{ "err_message": "User Not Found" }`
-**Response `409`:** `{ "err_message": "New Password Should Not Be Same As Old Passwords" }`
+**Validation Rules**
+
+| Field | Rules |
+|---|---|
+| `oldPassword` | Required · strong-password format |
+| `newPassword` | Required · must differ from `oldPassword` · strong-password format |
+| `flag` | Optional · `"logout"` / `"logoutFromAll"` / `"stayLoggedIn"` (default) |
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `200` | Password changed | `{ "message": "Password Updated Successfully", "data": { ... } }` |
+| `400` | Old password does not match | `{ "err_message": "Invalid Old Password" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
+| `404` | User no longer exists | `{ "err_message": "User Not Found" }` |
+| `409` | New password matches a previously used password | `{ "err_message": "New Password Should Not Be Same As Old Passwords" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1317,180 +1265,107 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/user/profile-image</strong> — Upload profile image 🔒</summary>
+### `PATCH` `/user/profile-image` — Upload profile image 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <access_token>`
-**Content-Type:** `multipart/form-data`
-**Form Field:** `image` — single file (`image/jpeg` or `image/gif`)
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` |
+| `Content-Type` | `multipart/form-data` |
 
-**Validation Schema:**
-```javascript
-file: joi.object().keys({
-  fieldname:    joi.string().valid("image").required(),
-  originalname: joi.string().required(),
-  encoding:     joi.string().required(),
-  mimetype:     joi.string().valid(...Object.values(fileValidation.image)).required(),
-  destination:  joi.string().required(),
-  filename:     joi.string().required(),
-  path:         joi.string().required(),
-  size:         joi.number().positive().required(),
-}).required()
-```
+**Form Field:** `image` — single file · accepted types: `image/jpeg`, `image/gif`
 
-**Cloudinary Upload Preview:**
+**Responses**
 
-![Cloudinary Profile Image Upload](https://drive.google.com/uc?export=view&id=19LoatLss1WMcPWciqdty8W1pn2REHPKj)
-
-**Response `200`:** `{ "message": "Done", "data": { ... } }`
-**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection
-**Response `400`:** `{ "err_message": "Validation Error" }` — Joi file object validation
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | Image uploaded, old image deleted from Cloudinary | `{ "message": "Done", "data": { ... } }` |
+| `400` | File MIME type not allowed | `{ "err_message": "Invalid File Type" }` |
+| `400` | File object failed Joi validation | `{ "err_message": "Validation Error" }` |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
 
 <details>
 <summary><em>Controller — Cloud upload (active)</em></summary>
 
 ```javascript
 export const uploadProfileImage = asyncHandler(async (req, res, next) => {
-  const { secure_url, public_id } = await uploadFile({
-    file: req.file,
-    path: `user/${req.user._id}`,
-  });
-  // returnDocument: "before" so we still have the old public_id to destroy
+  const { secure_url, public_id } = await uploadFile({ file: req.file, path: `user/${req.user._id}` });
   const user = await DBService.findByIdAndUpdate({
     model: userModel,
     id: req.user._id,
     updatedData: { picture: { secure_url, public_id } },
     options: { returnDocument: "before" },
   });
-  if (user?.picture?.public_id) {
-    await destroyFile({ public_id: user.picture.public_id });
-  }
+  if (user?.picture?.public_id) await destroyFile({ public_id: user.picture.public_id });
   return successResponse({ res, data: user });
 });
 ```
-
-</details>
-
-<details>
-<summary><em>Controller — Local upload (alternative)</em></summary>
-
-```javascript
-// Uses localFileUpload() middleware instead of cloudFileUpload()
-// picture is stored as a file path string instead of { secure_url, public_id }
-export const uploadProfileImage = asyncHandler(async (req, res, next) => {
-  const user = await DBService.findByIdAndUpdate({
-    model: userModel,
-    id: req.user._id,
-    updatedData: { picture: req.file.finalPath },
-  });
-  return successResponse({ res, data: user });
-});
-```
-
-</details>
 
 </details>
 
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/user/profile-cover-images</strong> — Upload cover images 🔒</summary>
+### `PATCH` `/user/profile-cover-images` — Upload cover images 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <access_token>`
-**Content-Type:** `multipart/form-data`
-**Form Field:** `images` — 1–2 image files (`image/jpeg` or `image/gif`)
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` |
+| `Content-Type` | `multipart/form-data` |
 
-**Validation Schema:**
-```javascript
-files: joi.array().items({
-  fieldname:    joi.string().valid("images").required(),
-  originalname: joi.string().required(),
-  encoding:     joi.string().required(),
-  mimetype:     joi.string().valid(...Object.values(fileValidation.image)).required(),
-  destination:  joi.string().required(),
-  filename:     joi.string().required(),
-  path:         joi.string().required(),
-  size:         joi.number().positive().required(),
-}).min(1).max(2).required()
-```
+**Form Field:** `images` — 1–2 files · accepted types: `image/jpeg`, `image/gif`
 
-**Cloudinary Upload Preview:**
+**Responses**
 
-![Cloudinary Cover Images Upload](https://drive.google.com/uc?export=view&id=19LoatLss1WMcPWciqdty8W1pn2REHPKj)
-
-**Response `200`:** `{ "message": "Done", "data": { ... } }`
-**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection
-**Response `400`:** `{ "err_message": "Validation Error" }` — Joi files array validation
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
+| Status | Description | Body |
+|---|---|---|
+| `200` | Cover images uploaded, old ones deleted from Cloudinary | `{ "message": "Done", "data": { ... } }` |
+| `400` | File MIME type not allowed | `{ "err_message": "Invalid File Type" }` |
+| `400` | Files array failed Joi validation | `{ "err_message": "Validation Error" }` |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
 
 <details>
 <summary><em>Controller — Cloud upload (active)</em></summary>
 
 ```javascript
 export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
-  const attachments = await uploadFiles({
-    files: req.files,
-    path: `user/${req.user._id}/cover`,
-  });
-  // returnDocument: "before" so we still have the old public_ids to destroy
+  const attachments = await uploadFiles({ files: req.files, path: `user/${req.user._id}/cover` });
   const user = await DBService.findByIdAndUpdate({
     model: userModel,
     id: req.user._id,
     updatedData: { coverImages: attachments },
     options: { returnDocument: "before" },
   });
-  if (user?.coverImages?.length) {
-    await deleteResources({ public_ids: user.coverImages.map((img) => img.public_id) });
-  }
+  if (user?.coverImages?.length) await deleteResources({ public_ids: user.coverImages.map((img) => img.public_id) });
   return successResponse({ res, data: user });
 });
 ```
-
-</details>
-
-<details>
-<summary><em>Controller — Local upload (alternative)</em></summary>
-
-```javascript
-// Uses localFileUpload() middleware instead of cloudFileUpload()
-// coverImages is stored as an array of file path strings
-export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
-  const user = await DBService.findByIdAndUpdate({
-    model: userModel,
-    id: req.user._id,
-    updatedData: { coverImages: req.files?.map((file) => file.finalPath) },
-  });
-  return successResponse({ res, data: user });
-});
-```
-
-</details>
 
 </details>
 
 ---
 
-<details>
-<summary><code>GET</code> &nbsp; <strong>/user/refresh-token</strong> — Rotate tokens 🔒</summary>
+### `GET` `/user/refresh-token` — Rotate tokens 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <refresh_token>` or `Authorization: Admin <refresh_token>`
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <refresh_token>` or `Admin <refresh_token>` |
 
-**Response `200`:** `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `200` | New token pair issued | `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }` |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Refresh token has been revoked | `{ "err_message": "Token-Revoked" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1504,34 +1379,33 @@ export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>POST</code> &nbsp; <strong>/user/logout</strong> — Logout 🔒</summary>
+### `POST` `/user/logout` — Logout 🔒
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Bearer <access_token>`
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` |
 
-**Validation Schema:**
-```javascript
-body: joi.object().keys({
-  flag: joi.string().valid(...Object.values(logoutEnum)).default(logoutEnum.stayLoggedIn),
-}).required()
-```
-
-**Request Body:**
+**Request Body**
 ```json
 { "flag": "logout" }
 ```
 
-> 📋 `flag` accepts `"logout"` (revokes current token via JTI blacklist) or `"logoutFromAll"` (sets `changeCredentialsTime` to invalidate all active sessions).
+| Flag value | Behavior |
+|---|---|
+| `"logout"` | Revokes current token via JTI blacklist |
+| `"logoutFromAll"` | Sets `changeCredentialsTime` — invalidates all active sessions |
 
-**Response `201`:** `{ "message": "Logged Out Successfully" }`
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `201` | Logged out successfully | `{ "message": "Logged Out Successfully" }` |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1541,11 +1415,7 @@ export const logout = asyncHandler(async (req, res, next) => {
   const { flag } = req.body;
   switch (flag) {
     case logoutEnum.logoutFromAll:
-      await DBService.findByIdAndUpdate({
-        model: userModel,
-        id: req.decoded._id,
-        data: { changeCredentialsTime: new Date() },
-      });
+      await DBService.findByIdAndUpdate({ model: userModel, id: req.decoded._id, data: { changeCredentialsTime: new Date() } });
       break;
     default:
       await createRevokeToken({ req });
@@ -1556,32 +1426,23 @@ export const logout = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>GET</code> &nbsp; <strong>/user/:userId</strong> — Share / view public profile</summary>
+### `GET` `/user/:userId` — View public profile
 
-<br/>
+**Params**
 
-**Validation Schema:**
-```javascript
-params: joi.object().keys({
-  userId: generalFields.id.required(),  // valid MongoDB ObjectId
-}).required()
-```
+| Param | Rules |
+|---|---|
+| `userId` | Required · valid MongoDB ObjectId |
 
-**Response `200`:**
-```json
-{
-  "message": "Done",
-  "data": { "_id": "...", "firstName": "Ahmed", "lastName": "Essam", "fullName": "Ahmed Essam", "email": "ahmed@example.com" }
-}
-```
+**Responses**
 
-**Response `404`:** `{ "err_message": "Invalid Account" }`
-**Response `400`:** `{ "err_message": "Validation Error" }` — invalid `userId` ObjectId
+| Status | Description | Body |
+|---|---|---|
+| `200` | Public profile returned | `{ "message": "Done", "data": { "_id": "...", "firstName": "Ahmed", "lastName": "Essam", "fullName": "Ahmed Essam", "email": "..." } }` |
+| `400` | `userId` is not a valid ObjectId | `{ "err_message": "Validation Error" }` |
+| `404` | Account not found or not verified | `{ "err_message": "Invalid Account" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1596,31 +1457,33 @@ export const shareProfile = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>DELETE</code> &nbsp; <strong>/user/:userId/freeze-account</strong> — Soft-delete (freeze) account 🔒</summary>
+### `DELETE` `/user/:userId/freeze-account` — Soft-delete (freeze) account 🔒
 
-<br/>
+**Headers**
 
-> Users can freeze their own account (omit `userId`). Admins can freeze any account by passing `userId`.
+| Key | Value |
+|---|---|
+| `Authorization` | `Bearer <access_token>` |
 
-**Headers:** `Authorization: Bearer <access_token>`
+**Params**
 
-**Validation Schema:**
-```javascript
-params: joi.object().keys({
-  userId: generalFields.id,  // optional — required only for admin targeting another user
-})
-```
+| Param | Rules |
+|---|---|
+| `userId` | Optional · if provided, requires admin role |
 
-**Response `204`:** *(no body)*
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
-**Response `403`:** `{ "err_message": "Unauthorized Access" }` — non-admin passing another userId
-**Response `404`:** `{ "err_message": "User Not Found or Already Freezed Account" }`
+> Users can freeze their own account (omit `userId`). Admins can target any user by passing `userId`.
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `204` | Account frozen, no content | *(empty)* |
+| `401` | Token header malformed | `{ "err_message": "Missing-Token-Parts" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
+| `403` | Non-admin trying to freeze another user | `{ "err_message": "Unauthorized Access" }` |
+| `404` | User not found or already frozen | `{ "err_message": "User Not Found or Already Freezed Account" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1640,28 +1503,30 @@ export const freezeAccount = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>PATCH</code> &nbsp; <strong>/user/:userId/restore-account</strong> — Restore frozen account 🔒 Admin only</summary>
+### `PATCH` `/user/:userId/restore-account` — Restore frozen account 🔒 Admin only
 
-<br/>
+**Headers**
 
-**Headers:** `Authorization: Admin <access_token>`
+| Key | Value |
+|---|---|
+| `Authorization` | `Admin <access_token>` |
 
-**Validation Schema:**
-```javascript
-params: joi.object().keys({
-  userId: generalFields.id.required(),
-}).required()
-```
+**Params**
 
-**Response `200`:** `{ "message": "Done" }`
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
-**Response `403`:** `{ "err_message": "Unauthorized Account" }`
-**Response `404`:** `{ "err_message": "User Not Found or Already Restored Account" }`
+| Param | Rules |
+|---|---|
+| `userId` | Required · valid MongoDB ObjectId |
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `200` | Account restored | `{ "message": "Done" }` |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
+| `403` | Not an admin | `{ "err_message": "Unauthorized Account" }` |
+| `404` | User not found or already active | `{ "err_message": "User Not Found or Already Restored Account" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1680,30 +1545,32 @@ export const restoreAccount = asyncHandler(async (req, res, next) => {
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><code>DELETE</code> &nbsp; <strong>/user/:userId</strong> — Hard delete account 🔒 Admin only</summary>
+### `DELETE` `/user/:userId` — Hard delete account 🔒 Admin only
 
-<br/>
+**Headers**
 
-> Permanently deletes a previously frozen account. Account must have `deletedAt` set (i.e., must be frozen first).
+| Key | Value |
+|---|---|
+| `Authorization` | `Admin <access_token>` |
 
-**Headers:** `Authorization: Admin <access_token>`
+**Params**
 
-**Validation Schema:**
-```javascript
-params: joi.object().keys({
-  userId: generalFields.id.required(),
-}).required()
-```
+| Param | Rules |
+|---|---|
+| `userId` | Required · valid MongoDB ObjectId |
 
-**Response `204`:** *(no body)*
-**Response `401`:** `{ "err_message": "Token-Revoked" }`
-**Response `403`:** `{ "err_message": "Unauthorized Account" }`
-**Response `404`:** `{ "err_message": "User Not Found or Already Deleted" }`
+> Account must be frozen first (`deletedAt` must exist). Active accounts cannot be hard-deleted directly.
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| `204` | Account permanently deleted, no content | *(empty)* |
+| `401` | Token has been revoked | `{ "err_message": "Token-Revoked" }` |
+| `403` | Not an admin | `{ "err_message": "Unauthorized Account" }` |
+| `404` | User not found or not frozen | `{ "err_message": "User Not Found or Already Deleted" }` |
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1715,8 +1582,6 @@ export const deleteAccount = asyncHandler(async (req, res, next) => {
   return user.deletedCount ? successResponse({ res, status: 204 }) : next(new Error("User Not Found or Already Deleted", { cause: 404 }));
 });
 ```
-
-</details>
 
 </details>
 
