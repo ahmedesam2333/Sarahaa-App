@@ -45,55 +45,77 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 ---
 
-## Features
+## ✅ Features
+### ✔️ Completed
 
-### 🔐 Authentication & Authorization
+---
 
-| # | Feature | Details |
-|---|---|---|
-| 1 | JWT Access & Refresh Tokens | Dual-token system with unique `jti` per token |
-| 2 | Token Revocation | JTI blacklist model — revoke individual or all sessions |
-| 3 | Auth Middleware | Authentication, authorization, and combined middleware |
-| 4 | Google OAuth | Unified signup/login — no password required |
-| 5 | OTP Email Verification | nanoid OTP with 2-min expiry, sent via EventEmitter |
-| 6 | Forget Password | 3-step OTP-based reset flow |
-| 7 | Refresh Token Endpoint | Rotate access & refresh token pair |
-| 8 | Logout | Single session or all sessions |
+#### 🔐 Authentication & Authorization
 
-### 👤 User Profile Management
+* ✔️ JWT access & refresh token system with unique `jti` per token
+* ✔️ Token revocation via JTI blacklist model — revoke individual or all sessions
+* ✔️ Auth middleware — authentication, authorization, and combined variants
+* ✔️ Google OAuth — unified signup/login flow, no password required
+* ✔️ OTP email verification with nanoid + 2-min expiry, dispatched via Node EventEmitter
 
-| # | Feature | Details |
-|---|---|---|
-| 9 | Get Profile | Authenticated — phone decrypted on fetch |
-| 10 | Update Profile | Name, phone, gender |
-| 11 | Change Password | Stay logged in, logout, or logout from all |
-| 12 | Profile Image Upload | Cloudinary — auto-replaces previous on update |
-| 13 | Cover Images Upload | Cloudinary — up to 2 images |
-| 14 | Public Share Profile | View limited public fields by userId |
+  **📧 Email Preview — OTP / Confirm Email**
 
-### 🛡️ Security & Privacy
+  > The following email is sent to the user upon signup to verify their email address.
 
-| # | Feature | Details |
-|---|---|---|
-| 15 | bcrypt Password Hashing | With reuse prevention via `oldPasswords` |
-| 16 | AES Field Encryption | Phone numbers encrypted at rest |
-| 17 | Centralized Joi Validation | Middleware-level input validation |
-| 18 | CORS | Configured for specific allowed origins |
+  [![OTP Verification Email](https://drive.google.com/thumbnail?id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f&sz=w600)](https://drive.google.com/file/d/1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f/view?usp=sharing)
 
-### 🏗️ Architecture & Infrastructure
+* ✔️ Forget password — 3-step OTP-based reset flow (request → verify → reset)
 
-| # | Feature | Details |
-|---|---|---|
-| 19 | Modular Project Structure | Auth, user, DB, middleware, utils separated cleanly |
-| 20 | Global Async Error Handler | Uniform JSON error responses across all routes |
+  **📧 Email Preview — Password Reset**
 
-### 👨‍💼 Admin Controls
+  > The following email is sent when a user requests a password reset.
 
-| # | Feature | Details |
-|---|---|---|
-| 21 | Account Soft-Delete (Freeze) | Users can freeze own; admins can target any |
-| 22 | Account Restore | Admin only |
-| 23 | Hard Delete | Admin only — account must be frozen first |
+  [![Password Reset Email](https://drive.google.com/thumbnail?id=1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y&sz=w600)](https://drive.google.com/file/d/1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y/view?usp=sharing)
+
+* ✔️ Refresh token endpoint — rotates access & refresh token pair
+* ✔️ Logout — single session (JTI blacklist) or all sessions (`changeCredentialsTime`)
+
+---
+
+#### 👤 User Profile Management
+
+* ✔️ Get profile — authenticated; phone number AES-decrypted on fetch
+* ✔️ Update profile — name, phone, gender
+* ✔️ Change password — with `stayLoggedIn`, `logout`, or `logoutFromAll` flag
+* ✔️ Profile image upload via Cloudinary — auto-replaces old image on update
+* ✔️ Cover images upload via Cloudinary — up to 2 images, all replaced on update
+
+  **🖼️ Cloudinary Preview — Profile Image & Cover Images**
+
+  > The image below shows an example of a profile image and cover images uploaded and served via Cloudinary.
+
+  [![Profile & Cover Images on Cloudinary](https://drive.google.com/thumbnail?id=19LoatLss1WMcPWciqdty8W1pn2REHPKj&sz=w600)](https://drive.google.com/file/d/19LoatLss1WMcPWciqdty8W1pn2REHPKj/view?usp=sharing)
+
+* ✔️ Public share profile — view limited public fields by `userId`
+
+---
+
+#### 🛡️ Security & Privacy
+
+* ✔️ bcrypt password hashing with reuse prevention via `oldPasswords` array
+* ✔️ AES field encryption — phone numbers encrypted at rest
+* ✔️ Centralized Joi validation middleware across all routes
+* ✔️ CORS configured for specific allowed origins
+
+---
+
+#### 🏗️ Architecture & Infrastructure
+
+* ✔️ Modular project structure — auth, user, DB, middleware, and utils fully separated
+* ✔️ Global async error handler with uniform JSON responses across all routes
+
+---
+
+#### 👨‍💼 Admin Controls
+
+* ✔️ Account soft-delete (freeze) — users can freeze own; admins can target any user
+* ✔️ Account restore — admin only
+* ✔️ Hard delete — admin only; account must be frozen first (`deletedAt` must exist)
 
 ---
 
@@ -334,12 +356,6 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 | `400` | OTP expired (older than 2 minutes) |
 | `404` | Email not found or already verified |
 
-**📧 Email Preview — OTP Verification**
-
-> The following email is sent to the user upon signup to confirm their email address.
-
-[![OTP Verification Email](https://drive.google.com/thumbnail?id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f&sz=w600)](https://drive.google.com/file/d/1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f/view?usp=sharing)
-
 </details>
 
 ---
@@ -432,12 +448,6 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 | `404` | Email not found or no active reset request |
 
 > `changeCredentialsTime` is updated on success, immediately invalidating all previously issued tokens.
-
-**📧 Email Preview — Password Reset**
-
-> The following email is sent to the user when a password reset is requested.
-
-[![Password Reset Email](https://drive.google.com/thumbnail?id=1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y&sz=w600)](https://drive.google.com/file/d/1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y/view?usp=sharing)
 
 </details>
 
@@ -542,14 +552,6 @@ Replaces the existing profile image on Cloudinary if one exists.
 | `200` | Image uploaded |
 | `400` | Invalid file type |
 | `401` | Invalid or revoked token |
-
-**🖼️ Cloudinary Preview — Profile Image & Cover Images**
-
-> The images below show an example of a profile image and cover images uploaded and served from Cloudinary.
-
-[![Profile & Cover Images on Cloudinary](https://drive.google.com/thumbnail?id=19LoatLss1WMcPIqdy8W1pn2REHPKj&sz=w600)](https://drive.google.com/file/d/19LoatLss1WMcPWciqdty8W1pn2REHPKj/view?usp=sharing)
-
-> 📎 [View full screenshot](https://drive.google.com/file/d/19LoatLss1WMcPWciqdty8W1pn2REHPKj/view?usp=sharing)
 
 </details>
 
