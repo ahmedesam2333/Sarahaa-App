@@ -87,6 +87,14 @@ userSchema
   .get(function () {
     return `${this.firstName} ${this.lastName}`;
   });
+
+userSchema.virtual("messages", {
+  ref: "Message",
+  localField: "_id",
+  foreignField: "receiverId",
+  justOne: false,
+});
+
 const userModel = mongoose.models.User || mongoose.model("User", userSchema);
 export default userModel;
 userModel.syncIndexes();

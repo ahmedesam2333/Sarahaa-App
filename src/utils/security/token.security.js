@@ -90,6 +90,13 @@ export const decodeToken = async ({
   const user = await DBService.findById({
     model: userModel,
     id: decoded._id,
+    populate: [
+      {
+        path: "messages",
+        match: { deletedAt: { $exists: false } },
+        select: "content attachments",
+      },
+    ],
   });
   if (!user) return next(new Error("User Not Found", { cause: 404 }));
 
