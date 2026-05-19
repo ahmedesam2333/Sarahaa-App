@@ -1,7 +1,7 @@
 <div align="center">
 
 <h1>🕵️ Sarahaa App</h1>
-<p><strong>Anonymous Messaging App — REST API Backend</strong></p>
+<p><strong>Anonymous Messaging Platform — REST API Backend</strong></p>
 
 ![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=for-the-badge)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
@@ -11,7 +11,7 @@
 
 <br/>
 
-> A secure, scalable backend system for an anonymous social messaging platform.  
+> A secure, scalable backend system for an anonymous social messaging platform.
 > Users can send and receive anonymous messages with full auth, privacy controls, and hardened API security.
 
 </div>
@@ -25,7 +25,7 @@
 - [Features](#-features)
 - [Implementation Details](#-implementation-details)
 - [Database Structure](#-database-structure)
-- [Project Structure](#%EF%B8%8F-project-structure)
+- [Project Structure](#️-project-structure)
 - [API Documentation](#-api-documentation)
 - [Author](#-author)
 
@@ -38,7 +38,7 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 **Core concepts:**
 - Users register and get a personal public link
 - Anyone (logged in or not) can send an anonymous message to a user via that link
-- Users can view, manage, and reply to their messages (reply is visible to all, sender stays anonymous)
+- Users can view, manage, and reply to their messages (reply is visible to all; sender stays anonymous)
 - Full auth system with email OTP verification, Google OAuth, and password reset flow
 
 ---
@@ -77,7 +77,7 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | 7 | nanoid OTP generation + 2-min expiry logic | `utils/security/otp.security.js` |
 | 8 | JWT role-aware token system (Bearer/Admin) with `jti` tracking | `utils/security/token.security.js` |
 | 9 | Token revocation model — blacklist revoked JWTs | `DB/models/token.model.js` |
-| 10 | Auth middleware — authentication, authorization, combined `auth` (now returns `decoded`) | `middleware/auth.middleware.js` |
+| 10 | Auth middleware — authentication, authorization, combined `auth` (returns `decoded`) | `middleware/auth.middleware.js` |
 | 11 | Centralized Joi validation middleware | `middleware/validation.middleware.js` |
 | 12 | CORS configured for specific origins | `app.controller.js` |
 | 13 | Google OAuth — unified signup/login via `google-auth-library` | `modules/auth/auth.controller.js` |
@@ -215,7 +215,7 @@ export const checkOtpAge = async ({ caller = "", user } = {}) => {
 
 <br/>
 
-Tokens now include a `jti` (JWT ID) via `nanoid`. On logout, the `jti` is stored in the `Token` collection (blacklist). Every authenticated request checks the blacklist before proceeding. `changeCredentialsTime` on the user document provides a global session invalidation mechanism (logout from all devices).
+Tokens include a `jti` (JWT ID) via `nanoid`. On logout, the `jti` is stored in the `Token` collection (blacklist). Every authenticated request checks the blacklist before proceeding. `changeCredentialsTime` on the user document provides a global session invalidation mechanism (logout from all devices).
 
 ```javascript
 import jwt from "jsonwebtoken";
@@ -284,7 +284,7 @@ export const generateLoginCredentials = async ({ user } = {}) => {
 
 <br/>
 
-`decodeToken` now returns both `user` and `decoded` (the raw JWT payload). Both are attached to `req` so controllers can access the `jti` and `iat` for logout and revocation flows.
+`decodeToken` returns both `user` and `decoded` (the raw JWT payload). Both are attached to `req` so controllers can access the `jti` and `iat` for logout and revocation flows.
 
 ```javascript
 import { asyncHandler } from "../utils/response.js";
@@ -326,7 +326,7 @@ export const auth = ({ tokenType = tokenTypeEnum.access, accessRoles = [] } = {}
 
 <br/>
 
-`generalFields` is defined in `validation.middleware.js` and shared across all module validation files.
+`generalFields` is defined in `validation.middleware.js` and shared across all module validation files. Schemas are composed with Joi's `.append()` to avoid repetition.
 
 ```javascript
 import { asyncHandler } from "../utils/response.js";
@@ -479,9 +479,12 @@ export const deleteFolderByPrefix = async ({ prefix = "" } = {}) =>
 
 </details>
 
-
+<details>
+<summary><strong>🔑 Google OAuth — Unified Signup / Login</strong></summary>
 
 <br/>
+
+Uses `google-auth-library` to verify the Google ID token from the client. If the email is already registered via Google, the user is logged in. If the email exists under a different provider (`system`), a conflict error is returned. Otherwise, a new account is created automatically with no password requirement.
 
 ```javascript
 async function verifyGoogle({ idToken } = {}) {
@@ -761,8 +764,8 @@ SARAHAA-APP/
 
 ## 📖 API Documentation
 
-> **Base URL:** `http://localhost:5000`  
-> 🔒 Protected routes require `Authorization: Bearer <token>` or `Authorization: Admin <token>` header.  
+> **Base URL:** `http://localhost:5000`
+> 🔒 Protected routes require `Authorization: Bearer <token>` or `Authorization: Admin <token>` header.
 > ❌ All routes return `400 Validation Error` on invalid input — omitted per endpoint for brevity.
 
 ---
@@ -775,77 +778,14 @@ SARAHAA-APP/
 <br/>
 
 ```javascript
-router.post("/signup",           validation({ schema: validators.signup }),                  authController.signup);
-router.post("/login",            validation({ schema: validators.login }),                   authController.login);
-router.post("/gmail",            validation({ schema: validators.signupOrLoginWithGmail }), authController.signupOrLoginWithGmail);
-router.patch("/confirm-email",   validation({ schema: validators.confirmEmail }),            authController.confirmEmail);
-router.patch("/resend-otp",      validation({ schema: validators.resendOtp }),               authController.resendOtp);
-router.patch("/forget-password", validation({ schema: validators.forgetPassword }),          authController.forgetPassword);
-router.patch("/verify-forget-password", validation({ schema: validators.verifyForgetPassword }), authController.verifyForgetPassword);
-router.patch("/reset-password",  validation({ schema: validators.resetPassword }),           authController.resetPassword);
-```
-
-</details>
-
-<details>
-<summary><strong>Validation Schemas — auth.validation.js</strong></summary>
-
-<br/>
-
-Schemas compose on top of each other using Joi's `.append()` to avoid repetition.
-
-```javascript
-export const signup = {
-  body: joi.object().keys({
-    fullName: generalFields.fullName.required(),
-    email: generalFields.email.required(),
-    password: generalFields.password.required(),
-    phone: generalFields.phone.required(),
-    gender: generalFields.gender,
-    role: generalFields.role,
-  }).required().options({ allowUnknown: false }),
-};
-
-export const login = {
-  body: joi.object().keys({
-    email: generalFields.email.required(),
-    password: generalFields.password.required(),
-  }).required().options({ allowUnknown: false }),
-};
-
-export const forgetPassword = {
-  body: joi.object().keys({ email: generalFields.email.required() })
-    .required().options({ allowUnknown: false }),
-};
-
-// verifyForgetPassword extends forgetPassword with otp
-export const verifyForgetPassword = {
-  body: forgetPassword.body.append({ otp: generalFields.otp.required() })
-    .required().options({ allowUnknown: false }),
-};
-
-// resetPassword extends verifyForgetPassword with new password
-export const resetPassword = {
-  body: verifyForgetPassword.body.append({ password: generalFields.password.required() })
-    .required().options({ allowUnknown: false }),
-};
-
-export const confirmEmail = {
-  body: joi.object().keys({
-    email: generalFields.email.required(),
-    otp: generalFields.otp.required(),
-  }).required().options({ allowUnknown: false }),
-};
-
-export const resendOtp = {
-  body: joi.object().keys({ email: generalFields.email.required() })
-    .required().options({ allowUnknown: false }),
-};
-
-export const signupOrLoginWithGmail = {
-  body: joi.object().keys({ idToken: generalFields.idToken.required() })
-    .required().options({ allowUnknown: false }),
-};
+router.post("/signup",                  validation({ schema: validators.signup }),                       authController.signup);
+router.post("/login",                   validation({ schema: validators.login }),                        authController.login);
+router.post("/gmail",                   validation({ schema: validators.signupOrLoginWithGmail }),       authController.signupOrLoginWithGmail);
+router.patch("/confirm-email",          validation({ schema: validators.confirmEmail }),                 authController.confirmEmail);
+router.patch("/resend-otp",             validation({ schema: validators.resendOtp }),                    authController.resendOtp);
+router.patch("/forget-password",        validation({ schema: validators.forgetPassword }),               authController.forgetPassword);
+router.patch("/verify-forget-password", validation({ schema: validators.verifyForgetPassword }),         authController.verifyForgetPassword);
+router.patch("/reset-password",         validation({ schema: validators.resetPassword }),                authController.resetPassword);
 ```
 
 </details>
@@ -856,6 +796,18 @@ export const signupOrLoginWithGmail = {
 <summary><code>POST</code> &nbsp; <strong>/auth/signup</strong> — Register a new user</summary>
 
 <br/>
+
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  fullName: generalFields.fullName.required(),  // first + last (2–20 chars each)
+  email:    generalFields.email.required(),     // valid TLD: com/net/org/io/gov/edu
+  password: generalFields.password.required(),  // min 8, uppercase + lowercase + number + @$!%*?&
+  phone:    generalFields.phone.required(),     // Egyptian: 010/011/012/015
+  gender:   generalFields.gender,              // optional: "male" | "female"
+  role:     generalFields.role,                // optional: "user" | "admin"
+}).required().options({ allowUnknown: false })
+```
 
 **Request Body:**
 ```json
@@ -868,8 +820,6 @@ export const signupOrLoginWithGmail = {
   "role": "user"
 }
 ```
-
-> 📋 `fullName` first + last (2–20 chars each) · `email` valid TLD (com/net/org/io/gov/edu) · `password` min 8 chars + uppercase + lowercase + number + `@$!%*?&` · `phone` Egyptian (010/011/012/015) · `gender` & `role` optional enums
 
 **Response `201`:**
 ```json
@@ -909,6 +859,14 @@ export const signup = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  email:    generalFields.email.required(),
+  password: generalFields.password.required(),
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:**
 ```json
 {
@@ -916,8 +874,6 @@ export const signup = asyncHandler(async (req, res, next) => {
   "password": "Ahmed@1234"
 }
 ```
-
-> 📋 Same `email` and `password` rules as signup
 
 **Response `200`:**
 ```json
@@ -927,10 +883,10 @@ export const signup = asyncHandler(async (req, res, next) => {
 }
 ```
 
-> 🔑 `Bearer` keys for users · `Admin` keys for admins — resolved via `generateLoginCredentials`
+> 🔑 `Bearer` prefix for users · `Admin` prefix for admins — resolved via `generateLoginCredentials`
 
-**Response `401`:** `{ "err_message": "Please verify your account" }`  
-**Response `401`:** `{ "err_message": "this Account is deleted" }`  
+**Response `401`:** `{ "err_message": "Please verify your account" }`
+**Response `401`:** `{ "err_message": "this Account is deleted" }`
 **Response `404`:** `{ "err_message": "Invalid email or password" }`
 
 <details>
@@ -968,12 +924,21 @@ export const login = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  idToken: generalFields.idToken.required(),
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:** `{ "idToken": "<google_id_token>" }`
 
-**Response `201`** (new user): `{ "message": "User created successfully", "data": { "access_token": "...", "refresh_token": "..." } }`  
-**Response `200`** (existing): `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`  
-**Response `401`:** `{ "err_message": "Email Not Verified" }`  
+**Response `201`** (new user): `{ "message": "User created successfully", "data": { "access_token": "...", "refresh_token": "..." } }`
+**Response `200`** (existing user): `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`
+**Response `401`:** `{ "err_message": "Email Not Verified" }`
 **Response `409`:** `{ "err_message": "Email Exist" }`
+
+> See [Google OAuth — Unified Signup / Login](#-implementation-details) in Implementation Details for the full controller code.
 
 </details>
 
@@ -984,10 +949,18 @@ export const login = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  email: generalFields.email.required(),
+  otp:   generalFields.otp.required(),  // 6-digit numeric string
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:** `{ "email": "ahmed@example.com", "otp": "123456" }`
 
-**Response `200`:** `{ "message": "Email Verified Successfully", "data": { ... } }`  
-**Response `404`:** `{ "err_message": "Invalid Email or Has Been Confirmed Before" }`  
+**Response `200`:** `{ "message": "Email Verified Successfully", "data": { ... } }`
+**Response `404`:** `{ "err_message": "Invalid Email or Has Been Confirmed Before" }`
 **Response `400`:** `{ "err_message": "Invalid OTP" }` or `{ "err_message": "OTP has expired, please request a new one" }`
 
 <details>
@@ -1016,10 +989,17 @@ export const confirmEmail = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  email: generalFields.email.required(),
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:** `{ "email": "ahmed@example.com" }`
 
-**Response `200`:** `{ "message": "OTP resent successfully check your email" }`  
-**Response `404`:** `{ "err_message": "Invalid Email or Already Confirmed" }`  
+**Response `200`:** `{ "message": "OTP resent successfully check your email" }`
+**Response `404`:** `{ "err_message": "Invalid Email or Already Confirmed" }`
 **Response `400`:** `{ "err_message": "Please wait 2 mins before resending." }`
 
 <details>
@@ -1051,12 +1031,19 @@ export const resendOtp = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  email: generalFields.email.required(),
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:** `{ "email": "ahmed@example.com" }`
 
-**Response `200`:** `{ "message": "Please check your email for the OTP to reset your password" }`  
+**Response `200`:** `{ "message": "Please check your email for the OTP to reset your password" }`
 **Response `404`:** `{ "err_message": "Email Not Found OR Not Verified" }`
 
-> 📧 Sends a `forgetPassword` email event with a hashed OTP stored in `forgetPasswordOtp`.
+> 📧 Emits `forgetPassword` event — sends hashed OTP stored in `forgetPasswordOtp`.
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1087,10 +1074,18 @@ export const forgetPassword = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+// Extends forgetPassword schema with otp
+body: forgetPassword.body.append({
+  otp: generalFields.otp.required(),
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:** `{ "email": "ahmed@example.com", "otp": "123456" }`
 
-**Response `200`:** `{ "message": "OTP Verified Successfully, You Can Now Reset Your Password" }`  
-**Response `404`:** `{ "err_message": "Email Not Found" }`  
+**Response `200`:** `{ "message": "OTP Verified Successfully, You Can Now Reset Your Password" }`
+**Response `404`:** `{ "err_message": "Email Not Found" }`
 **Response `400`:** `{ "err_message": "Invalid OTP" }`
 
 <details>
@@ -1117,12 +1112,18 @@ export const verifyForgetPassword = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+// Extends verifyForgetPassword schema with new password
+body: verifyForgetPassword.body.append({
+  password: generalFields.password.required(),  // must satisfy strong-password rules
+}).required().options({ allowUnknown: false })
+```
+
 **Request Body:** `{ "email": "ahmed@example.com", "otp": "123456", "password": "NewPass@5678" }`
 
-> 📋 `password` must satisfy the same strong-password rules as signup.
-
-**Response `200`:** `{ "message": "Password Reset Successfully, You Can Now Login With Your New Password" }`  
-**Response `404`:** `{ "err_message": "Email Not Found" }`  
+**Response `200`:** `{ "message": "Password Reset Successfully, You Can Now Login With Your New Password" }`
+**Response `404`:** `{ "err_message": "Email Not Found" }`
 **Response `400`:** `{ "err_message": "Invalid OTP" }`
 
 > ⚠️ On success, `changeCredentialsTime` is updated — all previously issued tokens are immediately invalidated.
@@ -1162,90 +1163,17 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
 <br/>
 
 ```javascript
-router.get("/",                   auth({ accessRoles: endpoint.profile }),                                                    userController.getProfile);
-router.get("/refresh-token",      authentication({ tokenType: tokenTypeEnum.refresh }),                                       userController.getNewLoginCredentials);
-router.get("/:userId",            validation({ schema: validators.shareProfile }),                                            userController.shareProfile);
-router.post("/logout",            authentication(), validation({ schema: validators.logout }),                                userController.logout);
-router.patch("/",                 authentication(), validation({ schema: validators.updateBasicProfile }),                    userController.updateBasicProfile);
-router.patch("/password",         authentication(), validation({ schema: validators.updatePassword }),                        userController.updatePassword);
-router.patch("/profile-image",    authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"),   userController.uploadProfileImage);
-router.patch("/profile-cover-images", authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 2), userController.uploadProfileCoverImages);
-router.patch("/:userId/restore-account", auth({ accessRoles: endpoint.restoreAccount }), validation({ schema: validators.restoreAccount }), userController.restoreAccount);
-router.delete("/:userId",         auth({ accessRoles: endpoint.deleteAccount }), validation({ schema: validators.deleteAccount }), userController.deleteAccount);
-router.delete("{/:userId}/freeze-account", authentication(), validation({ schema: validators.freezeAccount }),               userController.freezeAccount);
-```
-
-</details>
-
-<details>
-<summary><strong>Validation Schemas — user.validation.js</strong></summary>
-
-<br/>
-
-```javascript
-export const shareProfile = {
-  params: joi.object().keys({ userId: generalFields.id.required() }).required(),
-};
-
-export const logout = {
-  body: joi.object().keys({
-    flag: joi.string().valid(...Object.values(logoutEnum)).default(logoutEnum.stayLoggedIn),
-  }).required(),
-};
-
-export const freezeAccount = {
-  params: joi.object().keys({ userId: generalFields.id }),
-};
-
-export const restoreAccount = {
-  params: joi.object().keys({ userId: generalFields.id }).required(),
-};
-
-export const deleteAccount = {
-  params: joi.object().keys({ userId: generalFields.id }).required(),
-};
-
-export const updateBasicProfile = {
-  body: joi.object().keys({
-    fullName: generalFields.fullName,
-    phone: generalFields.phone,
-    gender: generalFields.gender,
-  }).required(),
-};
-
-// updatePassword extends logout body with oldPassword + newPassword (must differ)
-export const updatePassword = {
-  body: logout.body.append({
-    oldPassword: generalFields.password.required(),
-    newPassword: generalFields.password.not(joi.ref("oldPassword")).required(),
-  }).required(),
-};
-
-export const profileImage = {
-  file: joi.object().keys({
-    fieldname: joi.string().valid("image").required(),
-    originalname: joi.string().required(),
-    encoding: joi.string().required(),
-    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
-    destination: joi.string().required(),
-    filename: joi.string().required(),
-    path: joi.string().required(),
-    size: joi.number().positive().required(),
-  }).required(),
-};
-
-export const coverImages = {
-  files: joi.array().items({
-    fieldname: joi.string().valid("images").required(),
-    originalname: joi.string().required(),
-    encoding: joi.string().required(),
-    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
-    destination: joi.string().required(),
-    filename: joi.string().required(),
-    path: joi.string().required(),
-    size: joi.number().positive().required(),
-  }).min(1).max(2).required(),
-};
+router.get("/",                              auth({ accessRoles: endpoint.profile }),                                                        userController.getProfile);
+router.get("/refresh-token",                 authentication({ tokenType: tokenTypeEnum.refresh }),                                           userController.getNewLoginCredentials);
+router.get("/:userId",                       validation({ schema: validators.shareProfile }),                                                userController.shareProfile);
+router.post("/logout",                       authentication(), validation({ schema: validators.logout }),                                    userController.logout);
+router.patch("/",                            authentication(), validation({ schema: validators.updateBasicProfile }),                        userController.updateBasicProfile);
+router.patch("/password",                    authentication(), validation({ schema: validators.updatePassword }),                            userController.updatePassword);
+router.patch("/profile-image",               authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"),        userController.uploadProfileImage);
+router.patch("/profile-cover-images",        authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 2),     userController.uploadProfileCoverImages);
+router.patch("/:userId/restore-account",     auth({ accessRoles: endpoint.restoreAccount }), validation({ schema: validators.restoreAccount }), userController.restoreAccount);
+router.delete("/:userId",                    auth({ accessRoles: endpoint.deleteAccount }), validation({ schema: validators.deleteAccount }), userController.deleteAccount);
+router.delete("{/:userId}/freeze-account",   authentication(), validation({ schema: validators.freezeAccount }),                             userController.freezeAccount);
 ```
 
 </details>
@@ -1267,12 +1195,12 @@ export const coverImages = {
 }
 ```
 
-> 📝 Phone is stored encrypted and decrypted before returning.
+> 📝 Phone is stored AES-encrypted and decrypted on retrieval before returning.
 
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
-**Response `401`:** `{ "err_message": "Token-Revoked" }`  
-**Response `401`:** `{ "err_message": "Invalid Credentials" }`  
-**Response `403`:** `{ "err_message": "Unauthorized Account" }`  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Response `401`:** `{ "err_message": "Invalid Credentials" }`
+**Response `403`:** `{ "err_message": "Unauthorized Account" }`
 **Response `404`:** `{ "err_message": "User Not Found" }`
 
 <details>
@@ -1298,7 +1226,16 @@ export const getProfile = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Request Body** *(all optional)*:
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  fullName: generalFields.fullName,   // optional
+  phone:    generalFields.phone,      // optional — will be AES-encrypted before save
+  gender:   generalFields.gender,     // optional: "male" | "female"
+}).required()
+```
+
+**Request Body** *(all fields optional)*:
 ```json
 {
   "fullName": "Ahmed Updated",
@@ -1307,11 +1244,9 @@ export const getProfile = asyncHandler(async (req, res, next) => {
 }
 ```
 
-> 📋 `fullName`, `phone`, `gender` — same validation rules as signup. All fields optional.
-
-**Response `200`:** `{ "message": "Done", "data": { ... } }`  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
-**Response `401`:** `{ "err_message": "Token-Revoked" }`  
+**Response `200`:** `{ "message": "Done", "data": { ... } }`
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
 **Response `404`:** `{ "err_message": "User Not Found" }`
 
 <details>
@@ -1338,6 +1273,15 @@ export const updateBasicProfile = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Bearer <access_token>`
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  oldPassword: generalFields.password.required(),
+  newPassword: generalFields.password.not(joi.ref("oldPassword")).required(),  // must differ from oldPassword
+  flag:        joi.string().valid(...Object.values(logoutEnum)).default(logoutEnum.stayLoggedIn),
+}).required()
+```
+
 **Request Body:**
 ```json
 {
@@ -1346,12 +1290,10 @@ export const updateBasicProfile = asyncHandler(async (req, res, next) => {
 }
 ```
 
-> 📋 Both fields must satisfy strong-password rules. `newPassword` must not match `oldPassword` or any previously used password.
-
-**Response `200`:** `{ "message": "Password Updated Successfully", "data": { ... } }`  
-**Response `400`:** `{ "err_message": "Invalid Old Password" }`  
-**Response `401`:** `{ "err_message": "Token-Revoked" }`  
-**Response `404`:** `{ "err_message": "User Not Found" }`  
+**Response `200`:** `{ "message": "Password Updated Successfully", "data": { ... } }`
+**Response `400`:** `{ "err_message": "Invalid Old Password" }`
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Response `404`:** `{ "err_message": "User Not Found" }`
 **Response `409`:** `{ "err_message": "New Password Should Not Be Same As Old Passwords" }`
 
 <details>
@@ -1384,30 +1326,32 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 
 <br/>
 
-**Headers:** `Authorization: Bearer <access_token>`  
-**Content-Type:** `multipart/form-data`  
-**Form Field:** `image` — single image file (`image/jpeg` or `image/gif`)
+**Headers:** `Authorization: Bearer <access_token>`
+**Content-Type:** `multipart/form-data`
+**Form Field:** `image` — single file (`image/jpeg` or `image/gif`)
 
-**Validation schema — `validators.profileImage`:**
+**Validation Schema:**
 ```javascript
-export const profileImage = {
-  file: joi.object().keys({
-    fieldname: joi.string().valid("image").required(),
-    originalname: joi.string().required(),
-    encoding: joi.string().required(),
-    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
-    destination: joi.string().required(),
-    filename: joi.string().required(),
-    path: joi.string().required(),
-    size: joi.number().positive().required(),
-  }).required(),
-};
+file: joi.object().keys({
+  fieldname:    joi.string().valid("image").required(),
+  originalname: joi.string().required(),
+  encoding:     joi.string().required(),
+  mimetype:     joi.string().valid(...Object.values(fileValidation.image)).required(),
+  destination:  joi.string().required(),
+  filename:     joi.string().required(),
+  path:         joi.string().required(),
+  size:         joi.number().positive().required(),
+}).required()
 ```
 
-**Response `200`:** `{ "message": "Done", "data": { ... } }`  
-**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection  
-**Response `400`:** `{ "err_message": "Validation Error" }` — Joi file object validation  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Cloudinary Upload Preview:**
+
+![Cloudinary Profile Image Upload](https://drive.google.com/uc?export=view&id=19LoatLss1WMcPWciqdty8W1pn2REHPKj)
+
+**Response `200`:** `{ "message": "Done", "data": { ... } }`
+**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection
+**Response `400`:** `{ "err_message": "Validation Error" }` — Joi file object validation
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
 **Response `401`:** `{ "err_message": "Token-Revoked" }`
 
 <details>
@@ -1462,30 +1406,32 @@ export const uploadProfileImage = asyncHandler(async (req, res, next) => {
 
 <br/>
 
-**Headers:** `Authorization: Bearer <access_token>`  
-**Content-Type:** `multipart/form-data`  
+**Headers:** `Authorization: Bearer <access_token>`
+**Content-Type:** `multipart/form-data`
 **Form Field:** `images` — 1–2 image files (`image/jpeg` or `image/gif`)
 
-**Validation schema — `validators.coverImages`:**
+**Validation Schema:**
 ```javascript
-export const coverImages = {
-  files: joi.array().items({
-    fieldname: joi.string().valid("images").required(),
-    originalname: joi.string().required(),
-    encoding: joi.string().required(),
-    mimetype: joi.string().valid(...Object.values(fileValidation.image)).required(),
-    destination: joi.string().required(),
-    filename: joi.string().required(),
-    path: joi.string().required(),
-    size: joi.number().positive().required(),
-  }).min(1).max(2).required(),
-};
+files: joi.array().items({
+  fieldname:    joi.string().valid("images").required(),
+  originalname: joi.string().required(),
+  encoding:     joi.string().required(),
+  mimetype:     joi.string().valid(...Object.values(fileValidation.image)).required(),
+  destination:  joi.string().required(),
+  filename:     joi.string().required(),
+  path:         joi.string().required(),
+  size:         joi.number().positive().required(),
+}).min(1).max(2).required()
 ```
 
-**Response `200`:** `{ "message": "Done", "data": { ... } }`  
-**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection  
-**Response `400`:** `{ "err_message": "Validation Error" }` — Joi files array validation  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Cloudinary Upload Preview:**
+
+![Cloudinary Cover Images Upload](https://drive.google.com/uc?export=view&id=19LoatLss1WMcPWciqdty8W1pn2REHPKj)
+
+**Response `200`:** `{ "message": "Done", "data": { ... } }`
+**Response `400`:** `{ "err_message": "Invalid File Type" }` — Multer fileFilter rejection
+**Response `400`:** `{ "err_message": "Validation Error" }` — Joi files array validation
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
 **Response `401`:** `{ "err_message": "Token-Revoked" }`
 
 <details>
@@ -1542,8 +1488,8 @@ export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Bearer <refresh_token>` or `Authorization: Admin <refresh_token>`
 
-**Response `200`:** `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `200`:** `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
 **Response `401`:** `{ "err_message": "Token-Revoked" }`
 
 <details>
@@ -1569,6 +1515,13 @@ export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Bearer <access_token>`
 
+**Validation Schema:**
+```javascript
+body: joi.object().keys({
+  flag: joi.string().valid(...Object.values(logoutEnum)).default(logoutEnum.stayLoggedIn),
+}).required()
+```
+
 **Request Body:**
 ```json
 { "flag": "logout" }
@@ -1576,8 +1529,8 @@ export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
 
 > 📋 `flag` accepts `"logout"` (revokes current token via JTI blacklist) or `"logoutFromAll"` (sets `changeCredentialsTime` to invalidate all active sessions).
 
-**Response `201`:** `{ "message": "Logged Out Successfully" }`  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `201`:** `{ "message": "Logged Out Successfully" }`
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
 **Response `401`:** `{ "err_message": "Token-Revoked" }`
 
 <details>
@@ -1612,6 +1565,13 @@ export const logout = asyncHandler(async (req, res, next) => {
 
 <br/>
 
+**Validation Schema:**
+```javascript
+params: joi.object().keys({
+  userId: generalFields.id.required(),  // valid MongoDB ObjectId
+}).required()
+```
+
 **Response `200`:**
 ```json
 {
@@ -1620,7 +1580,7 @@ export const logout = asyncHandler(async (req, res, next) => {
 }
 ```
 
-**Response `404`:** `{ "err_message": "Invalid Account" }`  
+**Response `404`:** `{ "err_message": "Invalid Account" }`
 **Response `400`:** `{ "err_message": "Validation Error" }` — invalid `userId` ObjectId
 
 <details>
@@ -1645,14 +1605,21 @@ export const shareProfile = asyncHandler(async (req, res, next) => {
 
 <br/>
 
-> Users can freeze their own account (no `userId` required). Admins can freeze any account by passing `userId`.
+> Users can freeze their own account (omit `userId`). Admins can freeze any account by passing `userId`.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Response `204`:** *(no body)*  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
-**Response `401`:** `{ "err_message": "Token-Revoked" }`  
-**Response `403`:** `{ "err_message": "Unauthorized Access" }` — non-admin passing another userId  
+**Validation Schema:**
+```javascript
+params: joi.object().keys({
+  userId: generalFields.id,  // optional — required only for admin targeting another user
+})
+```
+
+**Response `204`:** *(no body)*
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Response `403`:** `{ "err_message": "Unauthorized Access" }` — non-admin passing another userId
 **Response `404`:** `{ "err_message": "User Not Found or Already Freezed Account" }`
 
 <details>
@@ -1684,9 +1651,16 @@ export const freezeAccount = asyncHandler(async (req, res, next) => {
 
 **Headers:** `Authorization: Admin <access_token>`
 
-**Response `200`:** `{ "message": "Done" }`  
-**Response `401`:** `{ "err_message": "Token-Revoked" }`  
-**Response `403`:** `{ "err_message": "Unauthorized Account" }`  
+**Validation Schema:**
+```javascript
+params: joi.object().keys({
+  userId: generalFields.id.required(),
+}).required()
+```
+
+**Response `200`:** `{ "message": "Done" }`
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Response `403`:** `{ "err_message": "Unauthorized Account" }`
 **Response `404`:** `{ "err_message": "User Not Found or Already Restored Account" }`
 
 <details>
@@ -1715,13 +1689,20 @@ export const restoreAccount = asyncHandler(async (req, res, next) => {
 
 <br/>
 
-> Permanently deletes a previously frozen account. Account must have `deletedAt` set.
+> Permanently deletes a previously frozen account. Account must have `deletedAt` set (i.e., must be frozen first).
 
 **Headers:** `Authorization: Admin <access_token>`
 
-**Response `204`:** *(no body)*  
-**Response `401`:** `{ "err_message": "Token-Revoked" }`  
-**Response `403`:** `{ "err_message": "Unauthorized Account" }`  
+**Validation Schema:**
+```javascript
+params: joi.object().keys({
+  userId: generalFields.id.required(),
+}).required()
+```
+
+**Response `204`:** *(no body)*
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+**Response `403`:** `{ "err_message": "Unauthorized Account" }`
 **Response `404`:** `{ "err_message": "User Not Found or Already Deleted" }`
 
 <details>
@@ -1743,8 +1724,8 @@ export const deleteAccount = asyncHandler(async (req, res, next) => {
 
 ## 👨‍💻 Author
 
-**Ahmed Essam** — Node.js Backend Engineer  
-📩 ahmedezsam@gmail.com  
+**Ahmed Essam** — Node.js Backend Engineer
+📩 ahmedezsam@gmail.com
 🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
 
 ---
