@@ -55,6 +55,7 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | Validation | Joi |
 | Email | Nodemailer + Node EventEmitter |
 | OTP | nanoid (`customAlphabet`) |
+| File Upload | Multer (local & cloud) |
 | Config | dotenv |
 
 ---
@@ -72,18 +73,22 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | 5 | bcrypt password hashing & comparison | `utils/security/hash.security.js` |
 | 6 | AES symmetric encryption on sensitive fields | `utils/security/encrypt.security.js` |
 | 7 | nanoid OTP generation + 2-min expiry logic | `utils/security/otp.security.js` |
-| 8 | JWT role-aware token system (Bearer/Admin) | `utils/security/token.security.js` |
-| 9 | Auth middleware — authentication, authorization, combined `auth` | `middleware/auth.middleware.js` |
-| 10 | Centralized Joi validation middleware | `middleware/validation.middleware.js` |
-| 11 | CORS configured for specific origins | `app.controller.js` |
-| 12 | Google OAuth — unified signup/login via `google-auth-library` | `modules/auth/auth.controller.js` |
-| 13 | OTP email verification with EventEmitter | `utils/events/email.event.js` |
-| 14 | Forget password — OTP-based reset flow (3 steps) | `modules/auth/auth.controller.js` |
-| 15 | User profile — get, update basic info, update password | `modules/user/user.controller.js` |
-| 16 | Account soft-delete (freeze) & restore | `modules/user/user.controller.js` |
-| 17 | Hard delete account (admin only) | `modules/user/user.controller.js` |
-| 18 | Public share profile by userId | `modules/user/user.controller.js` |
-| 19 | Refresh token endpoint | `modules/user/user.controller.js` |
+| 8 | JWT role-aware token system (Bearer/Admin) with `jti` tracking | `utils/security/token.security.js` |
+| 9 | Token revocation model — blacklist revoked JWTs | `DB/models/token.model.js` |
+| 10 | Auth middleware — authentication, authorization, combined `auth` (now returns `decoded`) | `middleware/auth.middleware.js` |
+| 11 | Centralized Joi validation middleware | `middleware/validation.middleware.js` |
+| 12 | CORS configured for specific origins | `app.controller.js` |
+| 13 | Google OAuth — unified signup/login via `google-auth-library` | `modules/auth/auth.controller.js` |
+| 14 | OTP email verification with EventEmitter | `utils/events/email.event.js` |
+| 15 | Forget password — OTP-based reset flow (3 steps) + `changeCredentialsTime` on reset | `modules/auth/auth.controller.js` |
+| 16 | User profile — get, update basic info, update password | `modules/user/user.controller.js` |
+| 17 | Profile image upload (Cloudinary) | `modules/user/user.controller.js` |
+| 18 | Cover images upload — up to 2 (Cloudinary) | `modules/user/user.controller.js` |
+| 19 | Account soft-delete (freeze) & restore | `modules/user/user.controller.js` |
+| 20 | Hard delete account (admin only) | `modules/user/user.controller.js` |
+| 21 | Public share profile by userId | `modules/user/user.controller.js` |
+| 22 | Refresh token endpoint | `modules/user/user.controller.js` |
+| 23 | Logout — single session (JWT blacklist) or all sessions (`changeCredentialsTime`) | `modules/user/user.controller.js` |
 
 ---
 
@@ -91,7 +96,6 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 - [ ] Rate limiting per IP (`express-rate-limit`)
 - [ ] Helmet security headers
-- [ ] Multer file upload handling
 - [ ] Anonymous message sending (no auth required)
 - [ ] Message inbox — view, delete, reply
 - [ ] Block/report a message
@@ -201,32 +205,59 @@ export const checkOtpAge = async ({ caller = "", user } = {}) => {
 </details>
 
 <details>
-<summary><strong>🪙 JWT — Role-aware Token System</strong></summary>
+<summary><strong>🪙 JWT — Role-aware Token System with JTI & Revocation</strong></summary>
 
 <br/>
 
+Tokens now include a `jti` (JWT ID) via `nanoid`. On logout, the `jti` is stored in the `Token` collection (blacklist). Every authenticated request checks the blacklist before proceeding. `changeCredentialsTime` on the user document provides a global session invalidation mechanism (logout from all devices).
+
 ```javascript
 import jwt from "jsonwebtoken";
+import { nanoid } from "nanoid";
+import TokenModel from "../../DB/models/token.model.js";
 
 export const signatureLevelEnum = { bearer: "Bearer", admin: "Admin" };
 export const tokenTypeEnum = { access: "access", refresh: "refresh" };
-
-export const getSignatures = async ({ signatureLevel = signatureLevelEnum.bearer } = {}) => {
-  if (signatureLevel === signatureLevelEnum.admin) {
-    return { accessSignature: process.env.JWT_ACCESS_ADMIN_KEY, refreshSignature: process.env.JWT_REFRESH_ADMIN_KEY };
-  }
-  return { accessSignature: process.env.JWT_ACCESS_USER_KEY, refreshSignature: process.env.JWT_REFRESH_USER_KEY };
+export const logoutEnum = {
+  logoutFromAll: "logoutFromAll",
+  logout: "logout",
+  stayLoggedIn: "stayLoggedIn",
 };
+
+export const genAccessToken = async ({ payload = {}, signature, options } = {}) =>
+  jwt.sign(payload, signature ?? process.env.JWT_ACCESS_USER_KEY, options ?? {
+    expiresIn: Number(process.env.JWT_ACCESS_EXPIRES_IN), jwtid: nanoid(),
+  });
+
+export const genRefreshToken = async ({ payload = {}, signature, options } = {}) =>
+  jwt.sign(payload, signature ?? process.env.JWT_REFRESH_USER_KEY, options ?? {
+    expiresIn: Number(process.env.JWT_REFRESH_EXPIRES_IN), jwtid: nanoid(),
+  });
 
 export const decodeToken = async ({ next, authorization = "", tokenType = tokenTypeEnum.access } = {}) => {
   const [Bearer, token] = authorization?.split(" ") || [];
   if (!Bearer || !token) return next(new Error("Missing-Token-Parts", { cause: 401 }));
   const signatures = await getSignatures({ signatureLevel: Bearer });
-  const decoded = jwt.verify(token, tokenType === tokenTypeEnum.access ? signatures.accessSignature : signatures.refreshSignature);
+  const decoded = await verifyToken({
+    token,
+    signature: tokenType === tokenTypeEnum.access ? signatures.accessSignature : signatures.refreshSignature,
+  });
   if (!decoded?._id) return next(new Error("Invalid-Token", { cause: 400 }));
+  const revokedToken = await DBService.findOne({ model: TokenModel, filter: { jti: decoded.jti } });
+  if (decoded.jti && revokedToken) return next(new Error("Token-Revoked", { cause: 401 }));
   const user = await DBService.findById({ model: userModel, id: decoded._id });
   if (!user) return next(new Error("User Not Found", { cause: 404 }));
-  return user;
+  if (user.changeCredentialsTime?.getTime() > decoded.iat * 1000)
+    return next(new Error("Invalid Credentials", { cause: 401 }));
+  return { user, decoded };
+};
+
+export const createRevokeToken = async ({ req } = {}) => {
+  await DBService.create({
+    model: TokenModel,
+    data: [{ jti: req.decoded.jti, expiresIn: req.decoded.iat + Number(process.env.JWT_REFRESH_EXPIRES_IN), userId: req.decoded._id }],
+  });
+  return true;
 };
 
 export const generateLoginCredentials = async ({ user } = {}) => {
@@ -234,8 +265,8 @@ export const generateLoginCredentials = async ({ user } = {}) => {
     signatureLevel: user.role !== "user" ? signatureLevelEnum.admin : signatureLevelEnum.bearer,
   });
   return {
-    access_token: jwt.sign({ _id: user._id }, signatures.accessSignature, { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN }),
-    refresh_token: jwt.sign({ _id: user._id }, signatures.refreshSignature, { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN }),
+    access_token: await genAccessToken({ payload: { _id: user._id }, signature: signatures.accessSignature }),
+    refresh_token: await genRefreshToken({ payload: { _id: user._id }, signature: signatures.refreshSignature }),
   };
 };
 ```
@@ -247,13 +278,17 @@ export const generateLoginCredentials = async ({ user } = {}) => {
 
 <br/>
 
+`decodeToken` now returns both `user` and `decoded` (the raw JWT payload). Both are attached to `req` so controllers can access the `jti` and `iat` for logout and revocation flows.
+
 ```javascript
 import { asyncHandler } from "../utils/response.js";
 import { decodeToken, tokenTypeEnum } from "../utils/security/token.security.js";
 
 export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
   return asyncHandler(async (req, res, next) => {
-    req.user = await decodeToken({ next, authorization: req.headers?.authorization, tokenType });
+    const { user, decoded } = (await decodeToken({ next, authorization: req.headers?.authorization, tokenType })) || {};
+    req.user = user;
+    req.decoded = decoded;
     return next();
   });
 };
@@ -268,7 +303,9 @@ export const authorization = ({ accessRoles = [] } = {}) => {
 
 export const auth = ({ tokenType = tokenTypeEnum.access, accessRoles = [] } = {}) => {
   return asyncHandler(async (req, res, next) => {
-    req.user = await decodeToken({ next, authorization: req.headers?.authorization, tokenType });
+    const { user, decoded } = (await decodeToken({ next, authorization: req.headers?.authorization, tokenType })) || {};
+    req.user = user;
+    req.decoded = decoded;
     if (!accessRoles.includes(req.user?.role))
       return next(new Error("Unauthorized Account", { cause: 403 }));
     return next();
@@ -422,11 +459,13 @@ emailEvent.on("forgetPassword", async (data = {}) => {
 | `gender` | String | Enum: `male` / `female` · Default: `male` |
 | `role` | String | Enum: `user` / `admin` · Default: `user` |
 | `provider` | String | Enum: `system` / `google` · Default: `system` |
-| `picture` | String | Profile picture URL (Google OAuth) |
+| `picture` | Object | `{ secure_url, public_id }` — Cloudinary profile image |
+| `coverImages` | [Object] | Array of `{ secure_url, public_id }` — Cloudinary cover images |
 | `confirmEmail` | Date | Set on email verification · absent = unverified |
 | `confirmEmailOtp` | String | Hashed OTP · removed with `$unset` after verification |
 | `forgetPasswordOtp` | String | Hashed OTP for password reset · removed after use |
 | `otpDate` | Date | OTP generation timestamp · used for 2-min expiry |
+| `changeCredentialsTime` | Date | Updated on password reset / logout-from-all · invalidates all prior tokens |
 | `deletedAt` | Date | Soft-delete timestamp · absent = active account |
 | `deletedBy` | ObjectId | Reference to user who deleted the account |
 | `restoredAt` | Date | Restore timestamp |
@@ -447,8 +486,8 @@ export const providerEnum = ["system", "google"];
 
 const userSchema = new mongoose.Schema(
   {
-    firstName: { type: String, required: true, minLength: [2, "min 2"], maxLength: [20, "max 20"] },
-    lastName: { type: String, required: true, minLength: [2, "min 2"], maxLength: [20, "max 20"] },
+    firstName: { type: String, required: true, minLength: [2, "first name must be at least 2 characters"], maxLength: [20, "first name must be at most 20 characters"] },
+    lastName: { type: String, required: true, minLength: [2, "last name must be at least 2 characters"], maxLength: [20, "last name must be at most 20 characters"] },
     email: { type: String, required: true, unique: [true, "email must be unique"] },
     password: { type: String, required: function () { return this.provider === providerEnum[0]; } },
     oldPasswords: [String],
@@ -456,11 +495,13 @@ const userSchema = new mongoose.Schema(
     gender: { type: String, enum: { values: genderEnum, message: `Gender allows only male or female` }, default: genderEnum[0] },
     role: { type: String, enum: { values: roleEnum, message: `Role allows only user or admin` }, default: roleEnum[0] },
     provider: { type: String, enum: { values: providerEnum, message: `Provider allows only system or google` }, default: providerEnum[0] },
-    picture: String,
+    picture: { secure_url: String, public_id: String },
+    coverImages: [{ secure_url: String, public_id: String }],
     confirmEmail: Date,
     confirmEmailOtp: String,
     forgetPasswordOtp: String,
     otpDate: Date,
+    changeCredentialsTime: Date,
     deletedAt: Date,
     deletedBy: mongoose.Schema.Types.ObjectId,
     restoredAt: Date,
@@ -479,6 +520,43 @@ userSchema.virtual("fullName")
 const userModel = mongoose.models.User || mongoose.model("User", userSchema);
 export default userModel;
 userModel.syncIndexes();
+```
+
+</details>
+
+---
+
+### 🔑 Token Model — `src/DB/models/token.model.js`
+
+Stores revoked JWT IDs (blacklist). Each entry is indexed by `jti` and scoped to a `userId`. The `expiresIn` field allows future TTL-based cleanup.
+
+| Field | Type | Constraints |
+|---|---|---|
+| `jti` | String | Required · Unique — the JWT ID from the token payload |
+| `expiresIn` | Number | Required — Unix timestamp of token expiry (for cleanup) |
+| `userId` | ObjectId | Required · Ref: `User` |
+| `timestamps` | — | `createdAt` & `updatedAt` auto-managed |
+
+<details>
+<summary><strong>Click to see schema code</strong></summary>
+
+<br/>
+
+```javascript
+import mongoose from "mongoose";
+
+const tokenSchema = new mongoose.Schema(
+  {
+    jti: { type: String, required: true, unique: true },
+    expiresIn: { type: Number, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: "User" },
+  },
+  { timestamps: true }
+);
+
+const TokenModel = mongoose.models.Token || mongoose.model("Token", tokenSchema);
+export default TokenModel;
+TokenModel.syncIndexes();
 ```
 
 </details>
@@ -529,20 +607,24 @@ SARAHAA-APP/
 │   │   │   ├── auth.routes.js
 │   │   │   └── auth.validation.js     (Joi schemas for all auth routes)
 │   │   └── user/
-│   │       ├── user.controller.js     (getProfile, updateBasicProfile, updatePassword, shareProfile, freezeAccount, restoreAccount, deleteAccount, getNewLoginCredentials)
+│   │       ├── user.controller.js     (getProfile, updateBasicProfile, updatePassword, uploadProfileImage, uploadProfileCoverImages, shareProfile, freezeAccount, restoreAccount, deleteAccount, getNewLoginCredentials, logout)
 │   │       ├── user.routes.js
 │   │       ├── user.validation.js     (Joi schemas for all user routes)
 │   │       └── user.authorization.js  (role access lists per endpoint)
 │   ├── DB/
 │   │   ├── models/
-│   │   │   └── user.model.js          (full schema: auth fields, OTP fields, soft-delete fields, oldPasswords)
+│   │   │   ├── user.model.js          (full schema: auth fields, OTP fields, soft-delete fields, oldPasswords, picture/coverImages, changeCredentialsTime)
+│   │   │   └── token.model.js         (revoked JWT blacklist: jti, expiresIn, userId)
 │   │   ├── db.service.js              (findOne, findById, create, findByIdAndUpdate, findOneAndUpdate, deleteOne)
 │   │   └── connection.js
 │   ├── middleware/
-│   │   ├── auth.middleware.js         (authentication, authorization, auth)
+│   │   ├── auth.middleware.js         (authentication, authorization, auth — attaches req.user + req.decoded)
 │   │   └── validation.middleware.js   (generalFields + centralized Joi validation)
 │   └── utils/
 │       ├── response.js                (asyncHandler, successResponse, globalErrorHandling)
+│       ├── multer/
+│       │   ├── local.multer.js        (local file upload + fileValidation)
+│       │   └── cloud.multer.js        (Cloudinary file upload)
 │       ├── email/
 │       │   ├── send.email.js          (nodemailer transporter)
 │       │   └── templates/
@@ -553,7 +635,7 @@ SARAHAA-APP/
 │           ├── hash.security.js       (bcrypt generateHash + compareHash)
 │           ├── encrypt.security.js    (AES genEncrypt + genDecrypt)
 │           ├── otp.security.js        (nanoid generateOtp + checkOtpAge)
-│           └── token.security.js      (JWT gen/verify + decodeToken + generateLoginCredentials + role-aware signatures)
+│           └── token.security.js      (JWT gen/verify + decodeToken + generateLoginCredentials + createRevokeToken + role-aware signatures + logoutEnum)
 │   ├── app.controller.js              (Express app setup, CORS, route mounting, global error handler)
 │   └── index.js                       (server entry point)
 ├── .gitignore
@@ -672,6 +754,7 @@ export const signup = asyncHandler(async (req, res, next) => {
 > 🔑 `Bearer` keys for users · `Admin` keys for admins — resolved via `generateLoginCredentials`
 
 **Response `401`:** `{ "err_message": "Please verify your account" }`  
+**Response `401`:** `{ "err_message": "this Account is deleted" }`  
 **Response `404`:** `{ "err_message": "Invalid email or password" }`
 
 <details>
@@ -680,13 +763,21 @@ export const signup = asyncHandler(async (req, res, next) => {
 ```javascript
 export const login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-  const user = await DBService.findOne({ model: userModel, filter: { email, provider: providerEnum[0] } });
+  const user = await DBService.findOne({
+    model: userModel,
+    filter: { email, provider: providerEnum[0], deletedAt: { $exists: false } },
+  });
   if (!user) return next(new Error("Invalid email or password", { cause: 404 }));
   if (!user.confirmEmail) return next(new Error("Please verify your account", { cause: 401 }));
+  if (user.deletedAt) return next(new Error("this Account is deleted", { cause: 401 }));
   const match = await compareHash({ plainText: password, hashed: user.password });
   if (!match) return next(new Error("Invalid email or password", { cause: 404 }));
   const credentials = await generateLoginCredentials({ user });
-  return successResponse({ res, status: 200, message: `${user.role === "user" ? "User" : "Admin"} Logged in successfully`, data: credentials });
+  return successResponse({
+    res,
+    message: `${user.role === "user" ? "User" : "Admin"} Logged in successfully`,
+    data: credentials,
+  });
 });
 ```
 
@@ -858,6 +949,8 @@ export const verifyForgetPassword = asyncHandler(async (req, res, next) => {
 **Response `404`:** `{ "err_message": "Email Not Found" }`  
 **Response `400`:** `{ "err_message": "Invalid OTP" }`
 
+> ⚠️ On success, `changeCredentialsTime` is updated — all previously issued tokens are immediately invalidated.
+
 <details>
 <summary><em>Controller</em></summary>
 
@@ -869,7 +962,11 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
   if (!(await compareHash({ plainText: otp, hashed: user.forgetPasswordOtp }))) return next(new Error("Invalid OTP", { cause: 400 }));
   await DBService.findByIdAndUpdate({
     model: userModel, id: user._id,
-    updatedData: { password: await generateHash({ plainText: password }), $unset: { forgetPasswordOtp: true } },
+    updatedData: {
+      password: await generateHash({ plainText: password }),
+      changeCredentialsTime: new Date(),
+      $unset: { forgetPasswordOtp: 1 },
+    },
   });
   return successResponse({ res, message: "Password Reset Successfully, You Can Now Login With Your New Password" });
 });
@@ -889,14 +986,17 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
 <br/>
 
 ```javascript
-router.get("/",                   auth({ accessRoles: endpoint.profile }),                                              userController.getProfile);
-router.patch("/",                 authentication(), validation({ schema: validators.updateBasicProfile }),              userController.updateBasicProfile);
-router.patch("/password",         authentication(), validation({ schema: validators.updatePassword }),                  userController.updatePassword);
-router.get("/refresh-token",      authentication({ tokenType: tokenTypeEnum.refresh }),                                 userController.getNewLoginCredentials);
-router.get("/:userId",            validation({ schema: validators.shareProfile }),                                      userController.shareProfile);
+router.get("/",                   auth({ accessRoles: endpoint.profile }),                                                    userController.getProfile);
+router.get("/refresh-token",      authentication({ tokenType: tokenTypeEnum.refresh }),                                       userController.getNewLoginCredentials);
+router.get("/:userId",            validation({ schema: validators.shareProfile }),                                            userController.shareProfile);
+router.post("/logout",            authentication(), validation({ schema: validators.logout }),                                userController.logout);
+router.patch("/",                 authentication(), validation({ schema: validators.updateBasicProfile }),                    userController.updateBasicProfile);
+router.patch("/password",         authentication(), validation({ schema: validators.updatePassword }),                        userController.updatePassword);
+router.patch("/profile-image",    authentication(), cloudFileUpload({ validation: fileValidation.image }).single("image"),   userController.uploadProfileImage);
+router.patch("/profile-cover-images", authentication(), cloudFileUpload({ validation: fileValidation.image }).array("images", 2), userController.uploadProfileCoverImages);
 router.patch("/:userId/restore-account", auth({ accessRoles: endpoint.restoreAccount }), validation({ schema: validators.restoreAccount }), userController.restoreAccount);
 router.delete("/:userId",         auth({ accessRoles: endpoint.deleteAccount }), validation({ schema: validators.deleteAccount }), userController.deleteAccount);
-router.delete("{/:userId}/freeze-account", authentication(), validation({ schema: validators.freezeAccount }),         userController.freezeAccount);
+router.delete("{/:userId}/freeze-account", authentication(), validation({ schema: validators.freezeAccount }),               userController.freezeAccount);
 ```
 
 </details>
@@ -921,6 +1021,8 @@ router.delete("{/:userId}/freeze-account", authentication(), validation({ schema
 > 📝 Phone is stored encrypted and decrypted before returning.
 
 **Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`  
+**Response `401`:** `{ "err_message": "Invalid Credentials" }`  
 **Response `403`:** `{ "err_message": "Unauthorized Account" }`  
 **Response `404`:** `{ "err_message": "User Not Found" }`
 
@@ -959,6 +1061,8 @@ export const getProfile = asyncHandler(async (req, res, next) => {
 > 📋 `fullName`, `phone`, `gender` — same validation rules as signup. All fields optional.
 
 **Response `200`:** `{ "message": "Done", "data": { ... } }`  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`  
 **Response `404`:** `{ "err_message": "User Not Found" }`
 
 <details>
@@ -997,8 +1101,9 @@ export const updateBasicProfile = asyncHandler(async (req, res, next) => {
 
 **Response `200`:** `{ "message": "Password Updated Successfully", "data": { ... } }`  
 **Response `400`:** `{ "err_message": "Invalid Old Password" }`  
-**Response `409`:** `{ "err_message": "New Password Should Not Be Same As Old Passwords" }`  
-**Response `404`:** `{ "err_message": "User Not Found" }`
+**Response `401`:** `{ "err_message": "Token-Revoked" }`  
+**Response `404`:** `{ "err_message": "User Not Found" }`  
+**Response `409`:** `{ "err_message": "New Password Should Not Be Same As Old Passwords" }`
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1026,6 +1131,40 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 ---
 
 <details>
+<summary><code>PATCH</code> &nbsp; <strong>/user/profile-image</strong> — Upload profile image 🔒</summary>
+
+<br/>
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Content-Type:** `multipart/form-data`  
+**Form Field:** `image` — single image file
+
+**Response `200`:** `{ "message": "Done", "data": { ... } }`  
+**Response `400`:** `{ "err_message": "Validation Error" }` — invalid file type  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+
+</details>
+
+---
+
+<details>
+<summary><code>PATCH</code> &nbsp; <strong>/user/profile-cover-images</strong> — Upload cover images 🔒</summary>
+
+<br/>
+
+**Headers:** `Authorization: Bearer <access_token>`  
+**Content-Type:** `multipart/form-data`  
+**Form Field:** `images` — up to 2 image files
+
+**Response `200`:** `{ "message": "Done", "data": { ... } }`  
+**Response `400`:** `{ "err_message": "Validation Error" }` — invalid file type  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+
+</details>
+
+---
+
+<details>
 <summary><code>GET</code> &nbsp; <strong>/user/refresh-token</strong> — Rotate tokens 🔒</summary>
 
 <br/>
@@ -1033,7 +1172,8 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 **Headers:** `Authorization: Bearer <refresh_token>` or `Authorization: Admin <refresh_token>`
 
 **Response `200`:** `{ "message": "Done", "data": { "access_token": "...", "refresh_token": "..." } }`  
-**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
 
 <details>
 <summary><em>Controller</em></summary>
@@ -1042,6 +1182,51 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 export const getNewLoginCredentials = asyncHandler(async (req, res, next) => {
   const newCredentials = await generateLoginCredentials({ user: req.user });
   return successResponse({ res, status: 200, data: newCredentials });
+});
+```
+
+</details>
+
+</details>
+
+---
+
+<details>
+<summary><code>POST</code> &nbsp; <strong>/user/logout</strong> — Logout 🔒</summary>
+
+<br/>
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{ "flag": "logout" }
+```
+
+> 📋 `flag` accepts `"logout"` (revokes current token via JTI blacklist) or `"logoutFromAll"` (sets `changeCredentialsTime` to invalidate all active sessions).
+
+**Response `201`:** `{ "message": "Logged Out Successfully" }`  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`
+
+<details>
+<summary><em>Controller</em></summary>
+
+```javascript
+export const logout = asyncHandler(async (req, res, next) => {
+  const { flag } = req.body;
+  switch (flag) {
+    case logoutEnum.logoutFromAll:
+      await DBService.findByIdAndUpdate({
+        model: userModel,
+        id: req.decoded._id,
+        data: { changeCredentialsTime: new Date() },
+      });
+      break;
+    default:
+      await createRevokeToken({ req });
+  }
+  return successResponse({ res, status: 201, message: "Logged Out Successfully" });
 });
 ```
 
@@ -1094,6 +1279,8 @@ export const shareProfile = asyncHandler(async (req, res, next) => {
 **Headers:** `Authorization: Bearer <access_token>`
 
 **Response `204`:** *(no body)*  
+**Response `401`:** `{ "err_message": "Missing-Token-Parts" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`  
 **Response `403`:** `{ "err_message": "Unauthorized Access" }` — non-admin passing another userId  
 **Response `404`:** `{ "err_message": "User Not Found or Already Freezed Account" }`
 
@@ -1127,6 +1314,8 @@ export const freezeAccount = asyncHandler(async (req, res, next) => {
 **Headers:** `Authorization: Admin <access_token>`
 
 **Response `200`:** `{ "message": "Done" }`  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`  
+**Response `403`:** `{ "err_message": "Unauthorized Account" }`  
 **Response `404`:** `{ "err_message": "User Not Found or Already Restored Account" }`
 
 <details>
@@ -1160,6 +1349,8 @@ export const restoreAccount = asyncHandler(async (req, res, next) => {
 **Headers:** `Authorization: Admin <access_token>`
 
 **Response `204`:** *(no body)*  
+**Response `401`:** `{ "err_message": "Token-Revoked" }`  
+**Response `403`:** `{ "err_message": "Unauthorized Account" }`  
 **Response `404`:** `{ "err_message": "User Not Found or Already Deleted" }`
 
 <details>
