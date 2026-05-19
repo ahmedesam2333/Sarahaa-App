@@ -6,11 +6,15 @@ import {
 
 export const authentication = ({ tokenType = tokenTypeEnum.access } = {}) => {
   return asyncHandler(async (req, res, next) => {
-    req.user = await decodeToken({
-      next,
-      authorization: req.headers?.authorization,
-      tokenType,
-    });
+    const { user, decoded } =
+      (await decodeToken({
+        next,
+        authorization: req.headers?.authorization,
+        tokenType,
+      })) || {};
+
+    req.user = user;
+    req.decoded = decoded;
     return next();
   });
 };
@@ -28,13 +32,18 @@ export const auth = ({
   accessRoles = [],
 } = {}) => {
   return asyncHandler(async (req, res, next) => {
-    req.user = await decodeToken({
-      next,
-      authorization: req.headers?.authorization,
-      tokenType,
-    });
-    if (!accessRoles.includes(req.user?.role))
-      return next(new Error("Unauthorized Account", { cause: 403 }));
+    const { user, decoded } =
+      await decodeToken({
+        next,
+        authorization: req.headers?.authorization,
+        tokenType,
+      }) || {};
+
+    req.user = user;
+    req.decoded = decoded;
+
+    if (!accessRoles.includes(req.user?.role)){
+      return next(new Error("Unauthorized Account", { cause: 403 }));}
     return next();
   });
 };

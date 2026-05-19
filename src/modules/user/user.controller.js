@@ -1,15 +1,27 @@
 import userModel, { roleEnum } from "../../DB/models/user.model.js";
+import TokenModel from "../../DB/models/token.model.js";
 import * as DBService from "../../DB/db.service.js";
 import { asyncHandler, successResponse } from "../../utils/response.js";
 import {
   genDecrypt,
   genEncrypt,
 } from "../../utils/security/encrypt.security.js";
-import { generateLoginCredentials } from "../../utils/security/token.security.js";
+import {
+  generateLoginCredentials,
+  logoutEnum,
+  createRevokeToken,
+} from "../../utils/security/token.security.js";
 import {
   compareHash,
   generateHash,
 } from "../../utils/security/hash.security.js";
+import {
+  uploadFile,
+  destroyFile,
+  uploadFiles,
+  deleteResources,
+  deleteFolderByPrefix,
+} from "../../utils/multer/cloudinary.js";
 
 //Get Profile Api
 export const getProfile = asyncHandler(async (req, res, next) => {
@@ -28,6 +40,65 @@ export const shareProfile = asyncHandler(async (req, res, next) => {
   return user
     ? successResponse({ res, data: user })
     : next(new Error("Invalid Account", { cause: 404 }));
+});
+
+//Upload Profile Image Api
+export const uploadProfileImage = asyncHandler(async (req, res, next) => {
+  const { secure_url, public_id } = await uploadFile({
+    file: req.file,
+    path: `user/${req.user._id}`,
+  });
+  const user = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: req.user._id,
+    updatedData: {
+      picture: { secure_url, public_id },
+    },
+    options: { returnDocument: "before" },
+  });
+  if (user?.picture?.public_id) {
+    await destroyFile({ public_id: user.picture.public_id });
+  }
+  return successResponse({ res, data: user });
+  // const user = await DBService.findByIdAndUpdate({
+  //   model: userModel,
+  //   id: req.user._id,
+  //   updatedData: {
+  //     picture: req.file.finalPath,
+  //   },
+  // });
+  // return successResponse({ res, data: user });
+});
+
+//Upload Cover Profile Images Api
+export const uploadProfileCoverImages = asyncHandler(async (req, res, next) => {
+  const attachments = await uploadFiles({
+    files: req.files,
+    path: `user/${req.user._id}/cover`,
+  });
+  const user = await DBService.findByIdAndUpdate({
+    model: userModel,
+    id: req.user._id,
+    updatedData: {
+      coverImages: attachments,
+    },
+    options: { returnDocument: "before" },
+  });
+  if (user?.coverImages?.length) {
+    await deleteResources({
+      public_ids: user.coverImages.map((img) => img.public_id),
+    });
+  }
+  return successResponse({ res, data: user });
+  // console.log(req.files);
+  // const user = await DBService.findByIdAndUpdate({
+  //   model: userModel,
+  //   id: req.user._id,
+  //   updatedData: {
+  //     coverImages: req.files?.map((file) => file.finalPath),
+  //   },
+  // });
+  // return successResponse({ res, data: user });
 });
 
 //Update Profile Api
@@ -68,12 +139,25 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
     plainText: req.body.newPassword,
   });
 
+  let flagData = {};
+  switch (req.body.flag) {
+    case logoutEnum.logoutFromAll:
+      flagData.changeCredentialsTime = new Date();
+      break;
+    case logoutEnum.logout:
+      await createRevokeToken({ req });
+      break;
+    default:
+      break;
+  }
+
   const user = await DBService.findByIdAndUpdate({
     model: userModel,
     id: req.user._id,
     updatedData: {
       password: hashedPassword,
       $push: { oldPasswords: req.user.password },
+      ...flagData,
     },
   });
 
@@ -99,6 +183,7 @@ export const freezeAccount = asyncHandler(async (req, res, next) => {
     updatedData: {
       deletedAt: Date.now(),
       deletedBy: req.user._id,
+      changeCredentialsTime: new Date(),
       $unset: { restoredAt: 1, restoredBy: 1 },
     },
   });
@@ -149,13 +234,38 @@ export const deleteAccount = asyncHandler(async (req, res, next) => {
     },
   });
 
-  return user.deletedCount
-    ? successResponse({ res, status: 204 })
-    : next(
-        new Error("User Not Found or Already Deleted", {
-          cause: 404,
-        })
-      );
+  if (user.deletedCount) {
+    await deleteFolderByPrefix({ prefix: `user/${userId}` });
+    return successResponse({ res, status: 204 });
+  }
+  return next(
+    new Error("User Not Found or Already Deleted", {
+      cause: 404,
+    })
+  );
+});
+
+//Logout Api
+export const logout = asyncHandler(async (req, res, next) => {
+  const { flag } = req.body;
+
+  switch (flag) {
+    case logoutEnum.logoutFromAll:
+      await DBService.findByIdAndUpdate({
+        model: userModel,
+        id: req.decoded._id,
+        data: { changeCredentialsTime: new Date() },
+      });
+      break;
+    default:
+      await createRevokeToken({ req });
+  }
+
+  return successResponse({
+    res,
+    status: 201,
+    message: "Logged Out Successfully",
+  });
 });
 
 //Get New Login Credentials Api

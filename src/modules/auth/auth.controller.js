@@ -155,8 +155,12 @@ export const login = asyncHandler(async (req, res, next) => {
   if (!user) {
     return next(new Error("Invalid email or password", { cause: 404 }));
   }
+
   if (!user.confirmEmail) {
     return next(new Error("Please verify your account", { cause: 401 }));
+  }
+  if (user.deletedAt) {
+    return next(new Error("this Account is deleted", { cause: 401 }));
   }
 
   const match = await compareHash({
@@ -274,7 +278,8 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
     id: user._id,
     updatedData: {
       password: await generateHash({ plainText: password }),
-      $unset: { forgetPasswordOtp: true },
+      changeCredentialsTime: new Date(),
+      $unset: { forgetPasswordOtp: 1 },
     },
   });
 

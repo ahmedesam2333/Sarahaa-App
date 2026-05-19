@@ -60,7 +60,8 @@ const userSchema = new mongoose.Schema(
       },
       default: providerEnum[0],
     },
-    picture: String,
+    picture: { secure_url: String, public_id: String },
+    coverImages: [{ secure_url: String, public_id: String }],
     confirmEmail: Date,
     confirmEmailOtp: String,
     forgetPasswordOtp: String,
@@ -69,6 +70,7 @@ const userSchema = new mongoose.Schema(
     deletedBy: mongoose.Schema.Types.ObjectId,
     restoredAt: Date,
     restoredBy: mongoose.Schema.Types.ObjectId,
+    changeCredentialsTime: Date,
   },
   {
     timestamps: true,
