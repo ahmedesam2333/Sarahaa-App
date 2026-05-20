@@ -28,6 +28,7 @@
 - [API Reference](#api-reference)
   - [Auth — `/auth`](#auth----auth)
   - [User — `/user`](#user----user)
+  - [Message — `/message`](#message----message)
 - [Roadmap](#roadmap)
 - [Author](#author)
 
@@ -114,6 +115,19 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 
 ---
 
+#### 💬 Messaging
+
+* ✔️ Send anonymous message to any verified user by `receiverId` — no auth required
+* ✔️ Send message as an authenticated sender (`/sender` route) — `senderId` stored on message
+* ✔️ Message attachments — up to 2 images per message uploaded to Cloudinary
+* ✔️ List all received messages — populates via `messages` virtual on user model
+* ✔️ Get single message — accessible by sender or receiver only
+* ✔️ Freeze message (soft-delete) — receiver only; sets `deletedAt` + `deletedBy`
+* ✔️ Restore frozen message — receiver only; unsets soft-delete fields, sets restore audit fields
+* ✔️ Hard delete message — receiver only; message must be frozen first
+
+---
+
 #### 👨‍💼 Admin Controls
 
 * ✔️ Account soft-delete (freeze) — users can freeze own; admins can target any user
@@ -150,11 +164,15 @@ SARAHAA-APP/
 │   │   │   ├── auth.controller.js
 │   │   │   ├── auth.routes.js
 │   │   │   └── auth.validation.js
-│   │   └── user/
-│   │       ├── user.controller.js
-│   │       ├── user.routes.js
-│   │       ├── user.validation.js
-│   │       └── user.authorization.js
+│   │   ├── user/
+│   │   │   ├── user.controller.js
+│   │   │   ├── user.routes.js
+│   │   │   ├── user.validation.js
+│   │   │   └── user.authorization.js
+│   │   └── message/
+│   │       ├── message.controller.js
+│   │       ├── message.routes.js
+│   │       └── message.validation.js
 │   ├── DB/
 │   │   ├── models/
 │   │   │   ├── user.model.js
@@ -731,13 +749,169 @@ Users can freeze their own account (omit `userId`). Admins can target any user b
 
 ---
 
-## Roadmap
+### Message — `/message`
 
-- [ ] Anonymous message sending (no auth required)
-- [ ] Message inbox — view, delete, reply
-- [ ] Block / report a message
-- [ ] Pagination for message inbox
-- [ ] Admin dashboard
+<details>
+<summary><code>POST</code> &nbsp; <code>/message/:receiverId</code> &nbsp;—&nbsp; Send anonymous message</summary>
+
+<br>
+
+No authentication required. Anyone can send a message to a verified user's public profile link.
+
+**Params:** `receiverId` — valid MongoDB ObjectId
+
+**Content-Type:** `multipart/form-data`
+
+**Fields**
+
+| Field | Rules |
+|---|---|
+| `content` | String · 2–20,000 chars · Required if no attachments |
+| `attachments` | 0–2 image files (`image/jpeg`, `image/gif`) · Optional |
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `201` | Message sent |
+| `400` | No content and no attachments provided |
+| `404` | Receiver not found or account not verified |
+
+</details>
+
+---
+
+<details>
+<summary><code>POST</code> &nbsp; <code>/message/:receiverId/sender</code> &nbsp;—&nbsp; Send message as authenticated user &nbsp; 🔒</summary>
+
+<br>
+
+Same as anonymous send but requires a valid token — `senderId` is stored on the message.
+
+**Params:** `receiverId` — valid MongoDB ObjectId
+
+**Content-Type:** `multipart/form-data`
+
+**Fields**
+
+| Field | Rules |
+|---|---|
+| `content` | String · 2–20,000 chars · Required if no attachments |
+| `attachments` | 0–2 image files (`image/jpeg`, `image/gif`) · Optional |
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `201` | Message sent |
+| `400` | No content and no attachments provided |
+| `401` | Invalid or revoked token |
+| `404` | Receiver not found or account not verified |
+
+</details>
+
+---
+
+<details>
+<summary><code>GET</code> &nbsp; <code>/message</code> &nbsp;—&nbsp; List all received messages &nbsp; 🔒</summary>
+
+<br>
+
+Returns all messages received by the authenticated user, populated via the `messages` virtual on the user model.
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `200` | Messages returned |
+| `401` | Invalid or revoked token |
+
+</details>
+
+---
+
+<details>
+<summary><code>GET</code> &nbsp; <code>/message/:messageId</code> &nbsp;—&nbsp; Get a single message &nbsp; 🔒</summary>
+
+<br>
+
+**Params:** `messageId` — valid MongoDB ObjectId
+
+Accessible only by the sender or the receiver of the message. Soft-deleted messages are excluded.
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `200` | Message returned |
+| `401` | Invalid or revoked token |
+| `404` | Message not found or access denied |
+
+</details>
+
+---
+
+<details>
+<summary><code>DELETE</code> &nbsp; <code>/message/freeze-message/:messageId</code> &nbsp;—&nbsp; Freeze message (soft-delete) &nbsp; 🔒</summary>
+
+<br>
+
+**Params:** `messageId` — valid MongoDB ObjectId
+
+Receiver only. Sets `deletedAt` and `deletedBy` on the message — message is hidden but not removed.
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `204` | Message frozen |
+| `401` | Invalid or revoked token |
+| `404` | Message not found or already frozen |
+
+</details>
+
+---
+
+<details>
+<summary><code>DELETE</code> &nbsp; <code>/message/delete-message/:messageId</code> &nbsp;—&nbsp; Hard delete message &nbsp; 🔒</summary>
+
+<br>
+
+**Params:** `messageId` — valid MongoDB ObjectId
+
+Receiver only. Message must be frozen first (`deletedAt` must exist). Permanently removes the document.
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `204` | Message permanently deleted |
+| `401` | Invalid or revoked token |
+| `404` | Message not found or not frozen |
+
+</details>
+
+---
+
+<details>
+<summary><code>PATCH</code> &nbsp; <code>/message/restore-message/:messageId</code> &nbsp;—&nbsp; Restore frozen message &nbsp; 🔒</summary>
+
+<br>
+
+**Params:** `messageId` — valid MongoDB ObjectId
+
+Receiver only (must be the one who froze it — `deletedBy` must match). Unsets soft-delete fields and sets `restoredAt` / `restoredBy`.
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `200` | Message restored |
+| `401` | Invalid or revoked token |
+| `404` | Message not found or already restored |
+
+</details>
+
 
 ---
 
