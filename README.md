@@ -156,11 +156,9 @@ The application is deployed on an **AWS EC2** instance with the following produc
 - **PM2 Cluster Mode** — The app runs under PM2 in cluster mode, utilizing all available CPU cores, with automatic restarts on crash and persistence across server reboots
 - **ngrok** — Provides a public HTTPS tunnel to the server for the secure URL
 
-  **AWS Configuration Screenshots**
+  **Configuration Screenshots**
 
-  > The images below show the EC2 instance, security group rules, Elastic IP, and server configuration.
-
-  [![AWS EC2 Configuration](https://drive.google.com/thumbnail?id=1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_&sz=w600)](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
+> AWS EC2 instance, security groups, Elastic IP, and server setup — [view all screenshots](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
 
 **Live URLs**
 
@@ -948,24 +946,6 @@ Receiver only (must be the user who froze it — `deletedBy` must match). Unsets
 | `404` | Message not found or already restored |
 
 </details>
-
----
-
-## Deployment
-
-The application is hosted on an **AWS EC2** Linux instance with the following production setup:
-
-**Infrastructure**
-
-- Elastic IP assigned to the instance for a stable, permanent public address
-- Security group configured to allow inbound traffic on ports 80 (HTTP), 443 (HTTPS), and 22 (SSH)
-- Nginx installed as a reverse proxy, routing public traffic to the Node.js app on its internal port
-- PM2 running in cluster mode — utilizes all CPU cores, auto-restarts on crash, and survives server reboots
-- ngrok providing a public HTTPS tunnel for the secure endpoint
-
-**Configuration Screenshots**
-
-> AWS EC2 instance, security groups, Elastic IP, and server setup — [view all screenshots](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
 
 ---
 
