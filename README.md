@@ -158,11 +158,9 @@ The application is deployed on an **AWS EC2** instance with the following produc
 - **PM2 Cluster Mode** — The app runs under PM2 in cluster mode, utilizing all available CPU cores, with automatic restarts on crash and persistence across server reboots
 - **ngrok** — Provides a public HTTPS tunnel to the server for the secure URL
 
-> **Note:** The HTTPS URL uses ngrok's free tier and may change. Always refer to the latest README for the current URL.
-
 **Configuration Screenshots**
 
-> AWS EC2 instance, security groups, Elastic IP, and server setup — [view all screenshots](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
+> AWS EC2 instance, and server setup — [view all screenshots](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
 
 **Live URLs**
 
