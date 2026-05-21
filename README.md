@@ -149,7 +149,7 @@ Sarahaa is an anonymous messaging platform where users register, get a personal 
 
 The application is deployed on an **AWS EC2** instance with the following production infrastructure:
 
-> **Deployed:** May 20, 2025 · Hosted on the AWS Free Tier (6-month) — instance active until approximately **November 20, 2025**
+> **Deployed:** May 20, 2026 · Hosted on the AWS Free Tier (6-month) — instance active until approximately **November 20, 2026**
 
 - **EC2 Instance** — Linux server provisioned on AWS with a public Elastic IP address for a stable, permanent endpoint
 - **Security Groups** — Network rules configured to allow inbound traffic on HTTP (port 80) and HTTPS (port 443), plus SSH (port 22) for remote access
