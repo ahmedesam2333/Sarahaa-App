@@ -6,6 +6,7 @@ export const asyncHandler = (fn) => {
     });
   };
 };
+
 export const successResponse = ({
   res,
   message = "Done",
@@ -14,8 +15,7 @@ export const successResponse = ({
 }) => {
   return res.status(status).json({ message, data });
 };
+
 export const globalErrorHandling = (error, req, res, next) => {
-  return res
-    .status(error.cause || 400)
-    .json({ err_message: error.message, stack: error.stack });
+  return res.status(error.cause || 400).json({ err_message: error.message });
 };
