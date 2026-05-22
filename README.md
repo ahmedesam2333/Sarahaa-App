@@ -1,17 +1,27 @@
 <div align="center">
 
-<h1>🕵️ Sarahaa App</h1>
-<p><strong>Anonymous Messaging Platform — REST API Backend</strong></p>
+# 🕵️ Sarahaa App
 
-![Status](https://img.shields.io/badge/Status-In_Progress-f59e0b?style=for-the-badge)
+**Anonymous Messaging Platform — REST API Backend**
+
+![Status](https://img.shields.io/badge/Status-Completed-22c55e?style=for-the-badge)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS_EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
 
 <br/>
 
-> A secure, scalable backend system for an anonymous social messaging platform.
-> Users can send and receive anonymous messages with full auth, privacy controls, and hardened API security.
+> A secure, scalable backend for an anonymous social messaging platform.
+> Users share a public link and receive messages from anyone — senders stay anonymous by default, with full authentication, privacy controls, and hardened API security.
+
+**Live URLs**
+
+| Protocol | URL |
+|---|---|
+| HTTP | [http://ec2-32-192-124-255.compute-1.amazonaws.com](http://ec2-32-192-124-255.compute-1.amazonaws.com) |
+| HTTPS | [https://bagged-feeble-handcraft.ngrok-free.dev](https://bagged-feeble-handcraft.ngrok-free.dev) |
 
 </div>
 
@@ -29,110 +39,135 @@
   - [Auth — `/auth`](#auth----auth)
   - [User — `/user`](#user----user)
   - [Message — `/message`](#message----message)
-- [Roadmap](#roadmap)
+- [Deployment](#deployment)
 - [Author](#author)
 
 ---
 
 ## Overview
 
-Sarahaa is an anonymous messaging platform where users share a public link and receive messages from anyone — without the sender revealing their identity.
+Sarahaa is an anonymous messaging platform where users register, get a personal public profile link, and receive messages from anyone on the internet — without revealing the sender's identity.
 
 **Core flow:**
-- Users register and receive a personal public link
-- Anyone (authenticated or not) can send an anonymous message via that link
-- Users view, manage, and reply to messages — replies are public, senders stay anonymous
-- Full auth system: email OTP verification, Google OAuth, and password reset
+
+1. A user registers and verifies their email via OTP
+2. Their public profile link becomes accessible by anyone
+3. Anyone (authenticated or not) can send an anonymous message through that link
+4. The recipient views, manages, and can reply to messages — senders remain anonymous
+5. Admins have elevated controls for account management and moderation
 
 ---
 
-## ✅ Features
-### ✔️ Completed
+## Features
 
----
+### 🔐 Authentication & Authorization
 
-#### 🔐 Authentication & Authorization
+- JWT access and refresh token system with a unique `jti` per token
+- Token revocation via a JTI blacklist — revoke a single session or all sessions at once
+- Authentication, authorization, and combined middleware variants
+- Google OAuth — unified signup/login flow, no password required
+- Email OTP verification using nanoid with a 2-minute expiry, dispatched asynchronously via Node EventEmitter
 
-* ✔️ JWT access & refresh token system with unique `jti` per token
-* ✔️ Token revocation via JTI blacklist model — revoke individual or all sessions
-* ✔️ Auth middleware — authentication, authorization, and combined variants
-* ✔️ Google OAuth — unified signup/login flow, no password required
-* ✔️ OTP email verification with nanoid + 2-min expiry, dispatched via Node EventEmitter
+  **Email Preview — OTP Verification**
 
-  **📧 Email Preview — OTP / Confirm Email**
-
-  > The following email is sent to the user upon signup to verify their email address.
+  > Sent to the user upon signup to verify their email address.
 
   [![OTP Verification Email](https://drive.google.com/thumbnail?id=1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f&sz=w600)](https://drive.google.com/file/d/1wR2hoSEDwMcPIjyrXYfJZNaVFKIR5W6f/view?usp=sharing)
 
-* ✔️ Forget password — 3-step OTP-based reset flow (request → verify → reset)
+- 3-step OTP-based password reset flow: request → verify → reset
 
-  **📧 Email Preview — Password Reset**
+  **Email Preview — Password Reset**
 
-  > The following email is sent when a user requests a password reset.
+  > Sent when a user requests a password reset.
 
   [![Password Reset Email](https://drive.google.com/thumbnail?id=1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y&sz=w600)](https://drive.google.com/file/d/1CJAQzEyuI33c8Kftqd4VgE84uZ6nuB-Y/view?usp=sharing)
 
-* ✔️ Refresh token endpoint — rotates access & refresh token pair
-* ✔️ Logout — single session (JTI blacklist) or all sessions (`changeCredentialsTime`)
+- Refresh token endpoint — rotates both the access and refresh token on each call
+- Logout with two modes: single session (JTI blacklist) or all sessions (`changeCredentialsTime`)
 
 ---
 
-#### 👤 User Profile Management
+### 👤 User Profile Management
 
-* ✔️ Get profile — authenticated; phone number AES-decrypted on fetch
-* ✔️ Update profile — name, phone, gender
-* ✔️ Change password — with `stayLoggedIn`, `logout`, or `logoutFromAll` flag
-* ✔️ Profile image upload via Cloudinary — auto-replaces old image on update
-* ✔️ Cover images upload via Cloudinary — up to 2 images, all replaced on update
+- Get profile — authenticated; phone number is AES-decrypted before returning
+- Update profile fields: name, phone, gender
+- Change password — supports `stayLoggedIn`, `logout`, or `logoutFromAll` behavior
+- Profile image upload via Cloudinary — automatically replaces the previous image on update
+- Cover images upload via Cloudinary — up to 2 images, fully replaced on update
 
-  **🖼️ Cloudinary Preview — Profile Image & Cover Images**
+  **Cloudinary Preview — Profile & Cover Images**
 
-  > The image below shows an example of a profile image and cover images uploaded and served via Cloudinary.
+  > An example of profile and cover images stored and served via Cloudinary.
 
   [![Profile & Cover Images on Cloudinary](https://drive.google.com/thumbnail?id=19LoatLss1WMcPWciqdty8W1pn2REHPKj&sz=w600)](https://drive.google.com/file/d/19LoatLss1WMcPWciqdty8W1pn2REHPKj/view?usp=sharing)
 
-* ✔️ Public share profile — view limited public fields by `userId`
+- Public share profile — view a limited set of public fields by `userId`
 
 ---
 
-#### 🛡️ Security & Privacy
+### 💬 Messaging
 
-* ✔️ bcrypt password hashing with reuse prevention via `oldPasswords` array
-* ✔️ AES field encryption — phone numbers encrypted at rest
-* ✔️ Centralized Joi validation middleware across all routes
-* ✔️ CORS configured globally via `cors()` middleware
-* ✔️ Helmet — sets secure HTTP response headers to protect against common web vulnerabilities
-* ✔️ Rate limiting via `express-rate-limit` — 2,000 requests / hour per IP; returns `429` with a JSON error on breach; uses `draft-8` standard headers
-
----
-
-#### 🏗️ Architecture & Infrastructure
-
-* ✔️ Modular project structure — auth, user, DB, middleware, and utils fully separated
-* ✔️ Global async error handler with uniform JSON responses across all routes
-* ✔️ Chalk-powered server startup log — colored `Server is running on port 🚀` console output
+- Send an anonymous message to any verified user by `receiverId` — no authentication required
+- Send a message as an authenticated user (`/sender` route) — `senderId` is stored on the message
+- Message attachments — up to 2 images per message uploaded to Cloudinary
+- List all received messages — populated via the `messages` virtual on the user model
+- Get a single message — accessible by the sender or receiver only
+- Freeze message (soft-delete) — receiver only; sets `deletedAt` and `deletedBy`
+- Restore a frozen message — receiver only; unsets soft-delete fields and sets restore audit fields
+- Hard delete a message — receiver only; message must be frozen first
 
 ---
 
-#### 💬 Messaging
+### 👨‍💼 Admin Controls
 
-* ✔️ Send anonymous message to any verified user by `receiverId` — no auth required
-* ✔️ Send message as an authenticated sender (`/sender` route) — `senderId` stored on message
-* ✔️ Message attachments — up to 2 images per message uploaded to Cloudinary
-* ✔️ List all received messages — populates via `messages` virtual on user model
-* ✔️ Get single message — accessible by sender or receiver only
-* ✔️ Freeze message (soft-delete) — receiver only; sets `deletedAt` + `deletedBy`
-* ✔️ Restore frozen message — receiver only; unsets soft-delete fields, sets restore audit fields
-* ✔️ Hard delete message — receiver only; message must be frozen first
+- Account soft-delete (freeze) — users can freeze their own account; admins can target any user
+- Account restore — admin only
+- Hard delete — admin only; account must be frozen first (`deletedAt` must exist)
 
 ---
 
-#### 👨‍💼 Admin Controls
+### 🛡️ Security & Privacy
 
-* ✔️ Account soft-delete (freeze) — users can freeze own; admins can target any user
-* ✔️ Account restore — admin only
-* ✔️ Hard delete — admin only; account must be frozen first (`deletedAt` must exist)
+- Password hashing with bcrypt; previous passwords stored to prevent reuse
+- AES field encryption — phone numbers encrypted at rest, decrypted only on fetch
+- Centralized Joi validation middleware applied across all routes
+- CORS configured globally via `cors()` middleware
+- Helmet — sets a suite of secure HTTP response headers (CSP, HSTS, X-Frame-Options, etc.)
+- Rate limiting via `express-rate-limit` — 2,000 requests per hour per IP; excess requests return `429 Too Many Requests` with a JSON error body; standard `RateLimit-*` headers (`draft-8`) are sent on every response
+
+---
+
+### 🏗️ Architecture & Infrastructure
+
+- Modular project structure — auth, user, DB, middleware, and utils fully separated
+- Global async error handler with uniform JSON responses across all routes
+- Chalk-powered server startup log — colored console output with port information
+
+---
+
+### ☁️ Deployment — AWS EC2
+
+The application is deployed on an **AWS EC2** instance with the following production infrastructure:
+
+> **Deployed:** May 20, 2026 · Hosted on the AWS Free Tier (6-month) — instance active until approximately **November 20, 2026**
+
+- **EC2 Instance** — Ubuntu server provisioned on AWS with a public Elastic IP address for a stable, permanent endpoint
+- **Security Groups** — Network rules configured to allow inbound traffic on HTTP (port 80) and HTTPS (port 443), plus SSH (port 22) for remote access
+- **Elastic IP** — A static IP attached to the instance, ensuring the server address does not change on restart
+- **Nginx** — Installed and configured as a reverse proxy; routes incoming HTTP/HTTPS traffic to the Node.js application running on its internal port
+- **PM2 Cluster Mode** — The app runs under PM2 in cluster mode, utilizing all available CPU cores, with automatic restarts on crash and persistence across server reboots
+- **ngrok** — Provides a public HTTPS tunnel to the server for the secure URL
+
+**Configuration Screenshots**
+
+> AWS EC2 instance, and server setup — [view all screenshots](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
+
+**Live URLs**
+
+| Protocol | URL |
+|---|---|
+| HTTP (EC2 + Elastic IP) | [http://ec2-32-192-124-255.compute-1.amazonaws.com](http://ec2-32-192-124-255.compute-1.amazonaws.com) |
+| HTTPS (ngrok tunnel) | [https://bagged-feeble-handcraft.ngrok-free.dev](https://bagged-feeble-handcraft.ngrok-free.dev) |
 
 ---
 
@@ -147,10 +182,14 @@ Sarahaa is an anonymous messaging platform where users share a public link and r
 | Security | bcryptjs, CryptoJS (AES), CORS, Helmet, express-rate-limit |
 | Validation | Joi |
 | Email | Nodemailer + Node EventEmitter |
-| File Upload | Multer (local & Cloudinary) |
+| File Upload | Multer + Cloudinary |
 | OTP | nanoid (`customAlphabet`) |
 | Config | dotenv |
 | Logging | Chalk |
+| Process Manager | PM2 (cluster mode) |
+| Web Server | Nginx (reverse proxy) |
+| Cloud Infrastructure | AWS EC2, Elastic IP |
+| HTTPS Tunnel | ngrok |
 
 ---
 
@@ -216,34 +255,34 @@ SARAHAA-APP/
 | Field | Type | Notes |
 |---|---|---|
 | `firstName` / `lastName` | String | Required · 2–20 chars each |
-| `fullName` | Virtual | Getter/setter splitting first & last name |
+| `fullName` | Virtual | Getter/setter that splits first and last name |
 | `email` | String | Required · Unique |
 | `password` | String | Required for `system` provider · bcrypt hashed |
-| `oldPasswords` | [String] | Prevents password reuse |
-| `phone` | String | Required for `system` provider · AES encrypted |
+| `oldPasswords` | [String] | Stores previous hashed passwords to prevent reuse |
+| `phone` | String | Required for `system` provider · AES encrypted at rest |
 | `gender` | String | `male` / `female` · Default: `male` |
 | `role` | String | `user` / `admin` · Default: `user` |
 | `provider` | String | `system` / `google` · Default: `system` |
 | `picture` | Object | `{ secure_url, public_id }` — Cloudinary |
 | `coverImages` | [Object] | Array of `{ secure_url, public_id }` — Cloudinary |
-| `confirmEmail` | Date | Set on verification · absent = unverified |
+| `confirmEmail` | Date | Set on verification; absent means unverified |
 | `confirmEmailOtp` | String | Hashed · removed after verification |
 | `forgetPasswordOtp` | String | Hashed · removed after reset |
-| `otpDate` | Date | OTP timestamp — drives 2-min expiry logic |
+| `otpDate` | Date | OTP timestamp — drives the 2-minute expiry logic |
 | `changeCredentialsTime` | Date | Updated on password reset / logout-all · invalidates all prior tokens |
 | `deletedAt` / `deletedBy` | Date / ObjectId | Soft-delete fields |
 | `restoredAt` / `restoredBy` | Date / ObjectId | Restore audit fields |
-| `messages` | Virtual | Populates received messages via `Message.receiverId` — `justOne: false` |
+| `messages` | Virtual | Populates received messages via `Message.receiverId` |
 
 ---
 
-### Token (Blacklist) — `src/DB/models/token.model.js`
+### Token Blacklist — `src/DB/models/token.model.js`
 
 Stores revoked JWT IDs. Every authenticated request checks this collection before proceeding.
 
 | Field | Type | Notes |
 |---|---|---|
-| `jti` | String | Required · Unique — JWT ID from token payload |
+| `jti` | String | Required · Unique — JWT ID from the token payload |
 | `expiresIn` | Number | Unix timestamp — for future TTL cleanup |
 | `userId` | ObjectId | Required · Ref: `User` |
 
@@ -251,7 +290,7 @@ Stores revoked JWT IDs. Every authenticated request checks this collection befor
 
 ### Message — `src/DB/models/message.model.js`
 
-Stores anonymous (or identified) messages sent to a user's public profile link.
+Stores anonymous (or identified) messages sent to a user's public profile.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -268,19 +307,21 @@ Stores anonymous (or identified) messages sent to a user's public profile link.
 
 - **Passwords** — bcrypt hashed; previous passwords stored to prevent reuse
 - **Phone numbers** — AES encrypted at rest, decrypted only on profile fetch
-- **OTPs** — bcrypt hashed with a 2-minute expiry window; cooldown enforced on resend
-- **JWT** — Access + refresh token pair. Each token carries a unique `jti` (via nanoid). On logout, the `jti` is blacklisted in the Token collection. `changeCredentialsTime` on the user provides global session invalidation (logout from all devices).
-- **Google OAuth** — ID token verified server-side via `google-auth-library`; unified signup/login — no password required
-- **Helmet** — applies a suite of secure HTTP headers (CSP, HSTS, X-Frame-Options, etc.) on every response
-- **Rate Limiting** — `express-rate-limit` caps each IP at 2,000 requests per hour; excess requests are rejected with `429 Too Many Requests` and a JSON body; standard `RateLimit-*` headers (`draft-8`) are sent on every response
+- **OTPs** — bcrypt hashed with a 2-minute expiry; resend cooldown enforced
+- **JWT** — Access and refresh token pair. Each token carries a unique `jti` (via nanoid). On logout, the `jti` is blacklisted in the Token collection. `changeCredentialsTime` on the User model provides global session invalidation (logout from all devices).
+- **Google OAuth** — ID token verified server-side via `google-auth-library`; unified signup/login flow with no password required
+- **Helmet** — applies a full suite of secure HTTP headers on every response
+- **Rate Limiting** — `express-rate-limit` caps each IP at 2,000 requests per hour; excess requests are rejected with `429 Too Many Requests` plus a JSON error body; standard `RateLimit-*` headers (`draft-8`) are sent on every response
 
 ---
 
 ## API Reference
 
-**Base URL:** `http://localhost:5000`
+**Base URL (HTTP):** `http://ec2-32-192-124-255.compute-1.amazonaws.com`
 
-> 🔒 Protected routes require `Authorization: Bearer <token>` or `Authorization: Admin <token>`
+**Base URL (HTTPS):** `https://bagged-feeble-handcraft.ngrok-free.dev`
+
+> 🔒 Protected routes require `Authorization: Bearer <token>` (users) or `Authorization: Admin <token>` (admins)
 >
 > All routes return `400 Validation Error` on invalid input — omitted per endpoint for brevity.
 
@@ -349,7 +390,7 @@ Stores anonymous (or identified) messages sent to a user's public profile link.
 | `401` | Account is frozen |
 | `404` | Invalid email or password |
 
-> Token prefix is `Bearer` for users and `Admin` for admins — resolved automatically from user role.
+> Token prefix is `Bearer` for users and `Admin` for admins — resolved automatically from the user's role.
 
 </details>
 
@@ -370,7 +411,7 @@ Stores anonymous (or identified) messages sent to a user's public profile link.
 | Status | Description |
 |---|---|
 | `201` | New account created via Google |
-| `200` | Existing Google user logged in |
+| `200` | Existing Google account logged in |
 | `401` | Google email not verified |
 | `409` | Email already registered under `system` provider |
 
@@ -438,7 +479,7 @@ Stores anonymous (or identified) messages sent to a user's public profile link.
 | Status | Description |
 |---|---|
 | `200` | Reset OTP sent to email |
-| `404` | Email not found, unverified, or Google account |
+| `404` | Email not found, unverified, or a Google account |
 
 </details>
 
@@ -467,7 +508,7 @@ Stores anonymous (or identified) messages sent to a user's public profile link.
 ---
 
 <details>
-<summary><code>PATCH</code> &nbsp; <code>/auth/reset-password</code> &nbsp;—&nbsp; Set new password</summary>
+<summary><code>PATCH</code> &nbsp; <code>/auth/reset-password</code> &nbsp;—&nbsp; Set a new password</summary>
 
 <br>
 
@@ -501,7 +542,7 @@ Stores anonymous (or identified) messages sent to a user's public profile link.
 
 <br>
 
-Returns the authenticated user's profile. Phone number is decrypted before returning.
+Returns the authenticated user's profile. Phone number is AES-decrypted before returning.
 
 **Responses**
 
@@ -543,7 +584,7 @@ Returns the authenticated user's profile. Phone number is decrypted before retur
 ---
 
 <details>
-<summary><code>PATCH</code> &nbsp; <code>/user/password</code> &nbsp;—&nbsp; Update password &nbsp; 🔒</summary>
+<summary><code>PATCH</code> &nbsp; <code>/user/password</code> &nbsp;—&nbsp; Change password &nbsp; 🔒</summary>
 
 <br>
 
@@ -558,16 +599,16 @@ Returns the authenticated user's profile. Phone number is decrypted before retur
 
 | `flag` | Behavior |
 |---|---|
-| `stayLoggedIn` | Default — stay authenticated |
-| `logout` | Revoke current session token |
-| `logoutFromAll` | Invalidate all active sessions |
+| `stayLoggedIn` | Default — remain authenticated after change |
+| `logout` | Revoke the current session token |
+| `logoutFromAll` | Invalidate all active sessions across all devices |
 
 **Responses**
 
 | Status | Description |
 |---|---|
 | `200` | Password updated |
-| `400` | Old password doesn't match |
+| `400` | Old password does not match |
 | `401` | Invalid or revoked token |
 | `404` | User not found |
 | `409` | New password matches a previously used password |
@@ -581,7 +622,7 @@ Returns the authenticated user's profile. Phone number is decrypted before retur
 
 <br>
 
-**Content-Type:** `multipart/form-data`  
+**Content-Type:** `multipart/form-data`
 **Field:** `image` — single file · accepted: `image/jpeg`, `image/gif`
 
 Replaces the existing profile image on Cloudinary if one exists.
@@ -603,7 +644,7 @@ Replaces the existing profile image on Cloudinary if one exists.
 
 <br>
 
-**Content-Type:** `multipart/form-data`  
+**Content-Type:** `multipart/form-data`
 **Field:** `images` — 1–2 files · accepted: `image/jpeg`, `image/gif`
 
 Replaces all existing cover images on Cloudinary.
@@ -650,7 +691,7 @@ Replaces all existing cover images on Cloudinary.
 
 | `flag` | Behavior |
 |---|---|
-| `logout` | Revokes current token via JTI blacklist |
+| `logout` | Revokes the current token via JTI blacklist |
 | `logoutFromAll` | Sets `changeCredentialsTime` — invalidates all active sessions |
 
 **Responses**
@@ -686,11 +727,11 @@ Returns limited public fields: `firstName`, `lastName`, `fullName`, `email`.
 ---
 
 <details>
-<summary><code>DELETE</code> &nbsp; <code>/user/:userId/freeze-account</code> &nbsp;—&nbsp; Soft-delete (freeze) account &nbsp; 🔒</summary>
+<summary><code>DELETE</code> &nbsp; <code>/user/:userId/freeze-account</code> &nbsp;—&nbsp; Freeze account (soft-delete) &nbsp; 🔒</summary>
 
 <br>
 
-Users can freeze their own account (omit `userId`). Admins can target any user by passing `userId`.
+Users can freeze their own account. Admins can target any user by providing `userId`.
 
 **Responses**
 
@@ -710,7 +751,7 @@ Users can freeze their own account (omit `userId`). Admins can target any user b
 
 <br>
 
-**Header:** `Authorization: Admin <access_token>`  
+**Header:** `Authorization: Admin <access_token>`
 **Params:** `userId` — valid MongoDB ObjectId
 
 **Responses**
@@ -731,7 +772,7 @@ Users can freeze their own account (omit `userId`). Admins can target any user b
 
 <br>
 
-**Header:** `Authorization: Admin <access_token>`  
+**Header:** `Authorization: Admin <access_token>`
 **Params:** `userId` — valid MongoDB ObjectId
 
 > Account must be frozen first (`deletedAt` must exist). Active accounts cannot be hard-deleted directly.
@@ -756,17 +797,15 @@ Users can freeze their own account (omit `userId`). Admins can target any user b
 
 <br>
 
-No authentication required. Anyone can send a message to a verified user's public profile link.
+No authentication required. Anyone can send a message to a verified user's public profile.
 
 **Params:** `receiverId` — valid MongoDB ObjectId
 
 **Content-Type:** `multipart/form-data`
 
-**Fields**
-
 | Field | Rules |
 |---|---|
-| `content` | String · 2–20,000 chars · Required if no attachments |
+| `content` | String · 2–20,000 chars · Required if no attachments provided |
 | `attachments` | 0–2 image files (`image/jpeg`, `image/gif`) · Optional |
 
 **Responses**
@@ -786,17 +825,15 @@ No authentication required. Anyone can send a message to a verified user's publi
 
 <br>
 
-Same as anonymous send but requires a valid token — `senderId` is stored on the message.
+Same as anonymous send but requires a valid token — `senderId` is stored on the message document.
 
 **Params:** `receiverId` — valid MongoDB ObjectId
 
 **Content-Type:** `multipart/form-data`
 
-**Fields**
-
 | Field | Rules |
 |---|---|
-| `content` | String · 2–20,000 chars · Required if no attachments |
+| `content` | String · 2–20,000 chars · Required if no attachments provided |
 | `attachments` | 0–2 image files (`image/jpeg`, `image/gif`) · Optional |
 
 **Responses**
@@ -837,7 +874,7 @@ Returns all messages received by the authenticated user, populated via the `mess
 
 **Params:** `messageId` — valid MongoDB ObjectId
 
-Accessible only by the sender or the receiver of the message. Soft-deleted messages are excluded.
+Accessible only by the sender or receiver. Soft-deleted messages are excluded.
 
 **Responses**
 
@@ -858,7 +895,7 @@ Accessible only by the sender or the receiver of the message. Soft-deleted messa
 
 **Params:** `messageId` — valid MongoDB ObjectId
 
-Receiver only. Sets `deletedAt` and `deletedBy` on the message — message is hidden but not removed.
+Receiver only. Sets `deletedAt` and `deletedBy` — the message is hidden but not permanently removed.
 
 **Responses**
 
@@ -900,7 +937,7 @@ Receiver only. Message must be frozen first (`deletedAt` must exist). Permanentl
 
 **Params:** `messageId` — valid MongoDB ObjectId
 
-Receiver only (must be the one who froze it — `deletedBy` must match). Unsets soft-delete fields and sets `restoredAt` / `restoredBy`.
+Receiver only (must be the user who froze it — `deletedBy` must match). Unsets soft-delete fields and records `restoredAt` / `restoredBy`.
 
 **Responses**
 
@@ -912,14 +949,13 @@ Receiver only (must be the one who froze it — `deletedBy` must match). Unsets 
 
 </details>
 
-
 ---
 
 ## 👨‍💻 Author
 
 **Ahmed Essam** — Node.js Backend Engineer
-📩 ahmedezsam@gmail.com
-🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
+
+📩 ahmedezsam@gmail.com · 🔗 [LinkedIn](https://linkedin.com/in/ahmed-essam-33b989221)
 
 ---
 
