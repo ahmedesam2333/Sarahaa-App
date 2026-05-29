@@ -1,12 +1,34 @@
-import { asyncHandler, successResponse } from "./../../utils/response.js";
+import { successResponse } from "./../../utils/response.js";
 import MessageModel from "./../../DB/models/message.model.js";
 import userModel from "./../../DB/models/user.model.js";
 import * as DBService from "../../DB/db.service.js";
 import { uploadFiles } from "./../../utils/multer/cloudinary.js";
 
-export const sendMessage = asyncHandler(async (req, res, next) => {
+/**
+ * Send a message to a specific user.
+ * 
+ * Note: We are now depending on the Express v5 global async handler automatically.
+ * Therefore, we are not using the `next` function (since it is not the right way to pass errors in modern Express)
+ * and have replaced it with throwing standard errors.
+ * 
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Input:
+ * // req.params = { receiverId: '60c72b2f9b1d8b2bad123456' }
+ * // req.body = { content: 'Hello there!' }
+ * // Output (201 Created):
+ * // {
+ * //   success: true,
+ * //   message: "Message Sent Successfully",
+ * //   data: { _id: '...', content: 'Hello there!', receiverId: '...' }
+ * // }
+ */
+export const sendMessage = async (req, res) => {
   if (!req.body.content && !req.files) {
-    return next(new Error("Message content or attachments are required"));
+    throw new Error("Message content or attachments are required");
   }
 
   const { receiverId } = req.params;
@@ -19,9 +41,7 @@ export const sendMessage = asyncHandler(async (req, res, next) => {
     },
   });
   if (!user) {
-    return next(
-      new Error("User not found or Not Verified Account", { cause: 404 })
-    );
+    throw new Error("User not found or Not Verified Account", { cause: 404 });
   }
 
   const { content } = req.body;
@@ -50,16 +70,56 @@ export const sendMessage = asyncHandler(async (req, res, next) => {
     message: "Message Sent Successfully",
     data: message,
   });
-});
+};
 
-export const listMessages = asyncHandler(async (req, res, next) => {
+/**
+ * List all messages received or sent by the user.
+ * 
+ * Note: We are now depending on the Express v5 global async handler automatically.
+ * Therefore, we are not using the `next` function (since it is not the right way to pass errors in modern Express)
+ * and have replaced it with throwing standard errors.
+ * 
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Input:
+ * // req.user.messages = [{ ... }]
+ * // Output (200 OK):
+ * // {
+ * //   success: true,
+ * //   data: { messages: [{ ... }] }
+ * // }
+ */
+export const listMessages = async (req, res) => {
   return successResponse({
     res,
     data: { messages: req.user.messages },
   });
-});
+};
 
-export const getMessage = asyncHandler(async (req, res, next) => {
+/**
+ * Retrieve a specific message by its ID if the user is the sender or receiver.
+ * 
+ * Note: We are now depending on the Express v5 global async handler automatically.
+ * Therefore, we are not using the `next` function (since it is not the right way to pass errors in modern Express)
+ * and have replaced it with throwing standard errors.
+ * 
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Input:
+ * // req.params = { messageId: '60c72b2f9b1d8b2bad123456' }
+ * // Output (200 OK):
+ * // {
+ * //   success: true,
+ * //   data: { _id: '...', content: '...', receiverId: '...' }
+ * // }
+ */
+export const getMessage = async (req, res) => {
   const message = await DBService.findOne({
     model: MessageModel,
     filter: {
@@ -69,15 +129,31 @@ export const getMessage = asyncHandler(async (req, res, next) => {
     },
   });
   if (!message) {
-    return next(new Error("Message Not Found", { cause: 404 }));
+    throw new Error("Message Not Found", { cause: 404 });
   }
   return successResponse({
     res,
     data: message,
   });
-});
+};
 
-export const freezeMessage = asyncHandler(async (req, res, next) => {
+/**
+ * Freeze (soft-delete) a specific message received by the user.
+ * 
+ * Note: We are now depending on the Express v5 global async handler automatically.
+ * Therefore, we are not using the `next` function (since it is not the right way to pass errors in modern Express)
+ * and have replaced it with throwing standard errors.
+ * 
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Input:
+ * // req.params = { messageId: '60c72b2f9b1d8b2bad123456' }
+ * // Output (204 No Content)
+ */
+export const freezeMessage = async (req, res) => {
   const message = await DBService.findOneAndUpdate({
     model: MessageModel,
     filter: {
@@ -93,17 +169,31 @@ export const freezeMessage = asyncHandler(async (req, res, next) => {
     },
   });
   if (!message) {
-    return next(
-      new Error("Message Not Found or Already Freezed", { cause: 404 })
-    );
+    throw new Error("Message Not Found or Already Freezed", { cause: 404 });
   }
   return successResponse({
     res,
     status: 204,
   });
-});
+};
 
-export const deleteMessage = asyncHandler(async (req, res, next) => {
+/**
+ * Permanently delete a frozen message.
+ * 
+ * Note: We are now depending on the Express v5 global async handler automatically.
+ * Therefore, we are not using the `next` function (since it is not the right way to pass errors in modern Express)
+ * and have replaced it with throwing standard errors.
+ * 
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Input:
+ * // req.params = { messageId: '60c72b2f9b1d8b2bad123456' }
+ * // Output (204 No Content)
+ */
+export const deleteMessage = async (req, res) => {
   const message = await DBService.deleteOne({
     model: MessageModel,
     filter: {
@@ -113,17 +203,35 @@ export const deleteMessage = asyncHandler(async (req, res, next) => {
     },
   });
   if (!message.deletedCount) {
-    return next(
-      new Error("Message Not Found or Already Deleted", { cause: 404 })
-    );
+    throw new Error("Message Not Found or Already Deleted", { cause: 404 });
   }
   return successResponse({
     res,
     status: 204,
   });
-});
+};
 
-export const restoreMessage = asyncHandler(async (req, res, next) => {
+/**
+ * Restore a frozen message.
+ * 
+ * Note: We are now depending on the Express v5 global async handler automatically.
+ * Therefore, we are not using the `next` function (since it is not the right way to pass errors in modern Express)
+ * and have replaced it with throwing standard errors.
+ * 
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Input:
+ * // req.params = { messageId: '60c72b2f9b1d8b2bad123456' }
+ * // Output (200 OK):
+ * // {
+ * //   success: true,
+ * //   message: "success"
+ * // }
+ */
+export const restoreMessage = async (req, res) => {
   const message = await DBService.findOneAndUpdate({
     model: MessageModel,
     filter: {
@@ -138,11 +246,11 @@ export const restoreMessage = asyncHandler(async (req, res, next) => {
     },
   });
 
-  return message
-    ? successResponse({ res })
-    : next(
-        new Error("Message Not Found or Already Restored Message", {
-          cause: 404,
-        })
-      );
-});
+  if (!message) {
+    throw new Error("Message Not Found or Already Restored Message", {
+      cause: 404,
+    });
+  }
+
+  return successResponse({ res });
+};

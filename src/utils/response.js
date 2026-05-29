@@ -17,5 +17,5 @@ export const successResponse = ({
 };
 
 export const globalErrorHandling = (error, req, res, next) => {
-  return res.status(error.cause || 400).json({ err_message: error.message });
+  return res.status(error.cause || 400).json({ err_message: error.message,stack:process.env.MOOD==="DEV"?error.stack:undefined,error});
 };

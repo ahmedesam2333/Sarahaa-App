@@ -5,19 +5,15 @@ import { generalFields } from "../../middleware/validation.middleware.js";
 export const sendMessage = {
   files: joi
     .array()
-    .items({
-      fieldname: joi.string().valid("attachments").required(),
-      originalname: joi.string().required(),
-      encoding: joi.string().required(),
-      mimetype: joi
-        .string()
-        .valid(...Object.values(fileValidation.image))
-        .required(),
-      destination: joi.string().required(),
-      filename: joi.string().required(),
-      path: joi.string().required(),
-      size: joi.number().positive().required(),
-    })
+    .items(
+      generalFields.file.keys({
+        fieldname: joi.string().valid("attachments").required(),
+        mimetype: joi
+          .string()
+          .valid(...Object.values(fileValidation.image))
+          .required(),
+      })
+    )
     .min(0)
     .max(2),
   params: joi

@@ -71,21 +71,13 @@ export const updatePassword = {
 };
 
 export const profileImage = {
-  file: joi
-    .object()
+  file: generalFields.file
     .keys({
       fieldname: joi.string().valid("image").required(),
-      originalname: joi.string().required(),
-      encoding: joi.string().required(),
       mimetype: joi
         .string()
         .valid(...Object.values(fileValidation.image))
         .required(),
-      // finalPath: joi.string().required(),
-      destination: joi.string().required(),
-      filename: joi.string().required(),
-      path: joi.string().required(),
-      size: joi.number().positive().required(),
     })
     .required(),
 };
@@ -93,20 +85,15 @@ export const profileImage = {
 export const coverImages = {
   files: joi
     .array()
-    .items({
-      fieldname: joi.string().valid("images").required(),
-      originalname: joi.string().required(),
-      encoding: joi.string().required(),
-      mimetype: joi
-        .string()
-        .valid(...Object.values(fileValidation.image))
-        .required(),
-      // finalPath: joi.string().required(),
-      destination: joi.string().required(),
-      filename: joi.string().required(),
-      path: joi.string().required(),
-      size: joi.number().positive().required(),
-    })
+    .items(
+      generalFields.file.keys({
+        fieldname: joi.string().valid("images").required(),
+        mimetype: joi
+          .string()
+          .valid(...Object.values(fileValidation.image))
+          .required(),
+      })
+    )
     .required()
     .min(1)
     .max(2)
