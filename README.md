@@ -20,7 +20,7 @@
 
 | Protocol | URL |
 |---|---|
-| HTTP | [http://ec2-32-192-124-255.compute-1.amazonaws.com](http://ec2-32-192-124-255.compute-1.amazonaws.com) |
+| HTTP | [http://ec2-44-194-144-14.compute-1.amazonaws.com](http://ec2-44-194-144-14.compute-1.amazonaws.com) |
 | HTTPS | [https://bagged-feeble-handcraft.ngrok-free.dev](https://bagged-feeble-handcraft.ngrok-free.dev) |
 
 </div>
@@ -115,6 +115,7 @@ Sarahaa is an anonymous messaging platform where users register, get a personal 
 - Freeze message (soft-delete) — receiver only; sets `deletedAt` and `deletedBy`
 - Restore a frozen message — receiver only; unsets soft-delete fields and sets restore audit fields
 - Hard delete a message — receiver only; message must be frozen first
+- `message.controller.js` relies on **express-async-handler v5** for automatic async error propagation — no manual `asyncHandler()` wrapper needed; errors are thrown directly with `throw new Error()` instead of `next(new Error())`
 
 ---
 
@@ -166,7 +167,7 @@ The application is deployed on an **AWS EC2** instance with the following produc
 
 | Protocol | URL |
 |---|---|
-| HTTP (EC2 + Elastic IP) | [http://ec2-32-192-124-255.compute-1.amazonaws.com](http://ec2-32-192-124-255.compute-1.amazonaws.com) |
+| HTTP (EC2 + Elastic IP) | [http://ec2-44-194-144-14.compute-1.amazonaws.com](http://ec2-44-194-144-14.compute-1.amazonaws.com) |
 | HTTPS (ngrok tunnel) | [https://bagged-feeble-handcraft.ngrok-free.dev](https://bagged-feeble-handcraft.ngrok-free.dev) |
 
 ---
@@ -317,7 +318,7 @@ Stores anonymous (or identified) messages sent to a user's public profile.
 
 ## API Reference
 
-**Base URL (HTTP):** `http://ec2-32-192-124-255.compute-1.amazonaws.com`
+**Base URL (HTTP):** `http://ec2-44-194-144-14.compute-1.amazonaws.com`
 
 **Base URL (HTTPS):** `https://bagged-feeble-handcraft.ngrok-free.dev`
 
