@@ -116,6 +116,7 @@ Sarahaa is an anonymous messaging platform where users register, get a personal 
 - Restore a frozen message — receiver only; unsets soft-delete fields and sets restore audit fields
 - Hard delete a message — receiver only; message must be frozen first
 - `message.controller.js` relies on **express-async-handler v5** for automatic async error propagation — no manual `asyncHandler()` wrapper needed; errors are thrown directly with `throw new Error()` instead of `next(new Error())`
+- Each controller method in `message.controller.js` is documented with JSDoc comments specifying the method's purpose, input parameters, expected output, and usage examples
 
 ---
 
