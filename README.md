@@ -123,16 +123,99 @@ Sarahaa is an anonymous messaging platform where users register, get a personal 
 
 ---
 
-### 🤖 Toxicity Detection — OpenPipe AI
+### 🤖 Toxicity Detection — Fine-Tuned Model — OpenPipe AI
 
-- Fine-tuned `Llama 3.1 8B Instruct` model hosted on OpenPipe under `openpipe:Sarahaa-App`
-- Analyzes incoming anonymous messages and classifies harmful content before delivery
-- Returns a structured JSON payload: `is_toxic`, `category`, `severity`, `confidence`, and `action`
-- Supports 10 harm categories: `safe`, `insult`, `harassment`, `bullying`, `threat`, `hate_speech`, `sexual_harassment`, `profanity`, `spam`, `self_harm`
-- Four severity levels: `none`, `low`, `medium`, `high`, `critical`
-- Four action outcomes: `allow`, `warn`, `review`, `block`
-- Model runs at `temperature: 0` for deterministic, consistent classification
-- OpenPipe client initialized via `utils/openpipe/openpipe.connect.js` and consumed by `chat.controller.js`
+The toxicity detection feature is powered by a custom model fine-tuned on [OpenPipe](https://openpipe.ai/) — a platform for training, deploying, and serving fine-tuned LLMs.
+
+### Model Details
+
+| Property | Value |
+|---|---|
+| Platform | OpenPipe |
+| Deployment Type | Serverless |
+| Base Model | Llama 3.1 8B Instruct |
+| Fine-Tuned Model ID | `openpipe:Sarahaa-App` |
+| Status | Deployed |
+| Created At | June 2, 2026 · 5:50 PM |
+| Training Set Size | 47 examples |
+| Test Set Size | 5 examples |
+
+### Training Configuration
+
+| Parameter | Value |
+|---|---|
+| LoRA Size | 101.2 MB |
+| `learning_rate_multiplier` | 1 |
+| `num_epochs` | 10 |
+| `batch_size` | auto |
+| `lora_rank` | 8 |
+
+### OpenPipe Client — `src/utils/openpipe/openpipe.connect.js`
+
+The OpenPipe client wraps the standard OpenAI SDK with the `openpipe` extension, routing requests to the fine-tuned serverless endpoint.
+
+```javascript
+import OpenAI from "openpipe/openai";
+
+const client = new OpenAI({
+  openpipe: {
+    apiKey: process.env.OPENPIPE_API_KEY,
+  },
+});
+
+export default client;
+```
+
+### Controller — `src/modules/chat/chat.controller.js`
+
+```javascript
+export const sendChat = async (req, res) => {
+  const { chatMessage } = req.body;
+  const completion = await client.chat.completions.create({
+    model: "openpipe:Sarahaa-App",
+    messages: [
+      {
+        role: "system",
+        content:
+          'You are Sarahah\'s Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  "is_toxic": boolean,\n  "category": string,\n  "severity": string,\n  "confidence": float,\n  "action": string\n}\n\nAlways choose exactly one category.\nReturn only JSON.',
+      },
+      {
+        role: "user",
+        content: chatMessage,
+      },
+    ],
+    temperature: 0,
+  });
+
+  const result = completion?.choices[0]?.message.content;
+
+  return successResponse({
+    res,
+    message: "Chat Response",
+    data: JSON.parse(result),
+  });
+};
+```
+
+> `temperature: 0` is used to ensure fully deterministic, reproducible classifications across every request.
+
+### Training Dataset
+
+The model was fine-tuned on **47 labeled JSONL examples** covering all 10 harm categories, with balanced representation across severity levels. Each example follows the standard OpenAI chat format — a fixed system prompt, a user message, and the expected JSON classification as the assistant turn.
+
+**Dataset preview — `dataset.jsonl`**
+
+```jsonl
+{"messages": [{"role": "system", "content": "You are Sarahah's Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  \"is_toxic\": boolean,\n  \"category\": string,\n  \"severity\": string,\n  \"confidence\": float,\n  \"action\": string\n}\n\nAlways choose exactly one category.\nReturn only JSON."}, {"role": "user", "content": "You're amazing and always help everyone."}, {"role": "assistant", "content": "{\"is_toxic\":false,\"category\":\"safe\",\"severity\":\"none\",\"confidence\":0.99,\"action\":\"allow\"}"}]}
+{"messages": [{"role": "system", "content": "You are Sarahah's Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  \"is_toxic\": boolean,\n  \"category\": string,\n  \"severity\": string,\n  \"confidence\": float,\n  \"action\": string\n}\n\nAlways choose exactly one category.\nReturn only JSON."}, {"role": "user", "content": "I really appreciate your kindness."}, {"role": "assistant", "content": "{\"is_toxic\":false,\"category\":\"safe\",\"severity\":\"none\",\"confidence\":0.98,\"action\":\"allow\"}"}]}
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "You are so stupid, I can't believe anyone listens to you."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"insult\",\"severity\":\"medium\",\"confidence\":0.95,\"action\":\"warn\"}"}]}
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "I will find you and make you regret this."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"threat\",\"severity\":\"critical\",\"confidence\":0.98,\"action\":\"block\"}"}]}
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "Nobody likes you, just disappear already."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"bullying\",\"severity\":\"high\",\"confidence\":0.96,\"action\":\"block\"}"}]}
+```
+
+The full dataset and OpenPipe configuration screenshots are available in the project's Google Drive folder:
+
+📁 [View Dataset & Configuration on Google Drive](https://drive.google.com/drive/folders/13uv8yHjBynR3WEr9EPH94S_PU8A-kgoJ?usp=sharing)
 
 ---
 
@@ -1099,102 +1182,6 @@ No authentication required. Submit any text string and receive a toxicity classi
 | `400` | Missing or invalid `chatMessage` field |
 
 </details>
-
----
-
-## Fine-Tuned Model — OpenPipe
-
-The toxicity detection feature is powered by a custom model fine-tuned on [OpenPipe](https://openpipe.ai/) — a platform for training, deploying, and serving fine-tuned LLMs.
-
-### Model Details
-
-| Property | Value |
-|---|---|
-| Platform | OpenPipe |
-| Deployment Type | Serverless |
-| Base Model | Llama 3.1 8B Instruct |
-| Fine-Tuned Model ID | `openpipe:Sarahaa-App` |
-| Status | Deployed |
-| Created At | June 2, 2026 · 5:50 PM |
-| Training Set Size | 47 examples |
-| Test Set Size | 5 examples |
-
-### Training Configuration
-
-| Parameter | Value |
-|---|---|
-| LoRA Size | 101.2 MB |
-| `learning_rate_multiplier` | 1 |
-| `num_epochs` | 10 |
-| `batch_size` | auto |
-| `lora_rank` | 8 |
-
-### OpenPipe Client — `src/utils/openpipe/openpipe.connect.js`
-
-The OpenPipe client wraps the standard OpenAI SDK with the `openpipe` extension, routing requests to the fine-tuned serverless endpoint.
-
-```javascript
-import OpenAI from "openpipe/openai";
-
-const client = new OpenAI({
-  openpipe: {
-    apiKey: process.env.OPENPIPE_API_KEY,
-  },
-});
-
-export default client;
-```
-
-### Controller — `src/modules/chat/chat.controller.js`
-
-```javascript
-export const sendChat = async (req, res) => {
-  const { chatMessage } = req.body;
-  const completion = await client.chat.completions.create({
-    model: "openpipe:Sarahaa-App",
-    messages: [
-      {
-        role: "system",
-        content:
-          'You are Sarahah\'s Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  "is_toxic": boolean,\n  "category": string,\n  "severity": string,\n  "confidence": float,\n  "action": string\n}\n\nAlways choose exactly one category.\nReturn only JSON.',
-      },
-      {
-        role: "user",
-        content: chatMessage,
-      },
-    ],
-    temperature: 0,
-  });
-
-  const result = completion?.choices[0]?.message.content;
-
-  return successResponse({
-    res,
-    message: "Chat Response",
-    data: JSON.parse(result),
-  });
-};
-```
-
-> `temperature: 0` is used to ensure fully deterministic, reproducible classifications across every request.
-
-### Training Dataset
-
-The model was fine-tuned on **47 labeled JSONL examples** covering all 10 harm categories, with balanced representation across severity levels. Each example follows the standard OpenAI chat format — a fixed system prompt, a user message, and the expected JSON classification as the assistant turn.
-
-**Dataset preview — `dataset.jsonl`**
-
-```jsonl
-{"messages": [{"role": "system", "content": "You are Sarahah's Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  \"is_toxic\": boolean,\n  \"category\": string,\n  \"severity\": string,\n  \"confidence\": float,\n  \"action\": string\n}\n\nAlways choose exactly one category.\nReturn only JSON."}, {"role": "user", "content": "You're amazing and always help everyone."}, {"role": "assistant", "content": "{\"is_toxic\":false,\"category\":\"safe\",\"severity\":\"none\",\"confidence\":0.99,\"action\":\"allow\"}"}]}
-{"messages": [{"role": "system", "content": "You are Sarahah's Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  \"is_toxic\": boolean,\n  \"category\": string,\n  \"severity\": string,\n  \"confidence\": float,\n  \"action\": string\n}\n\nAlways choose exactly one category.\nReturn only JSON."}, {"role": "user", "content": "I really appreciate your kindness."}, {"role": "assistant", "content": "{\"is_toxic\":false,\"category\":\"safe\",\"severity\":\"none\",\"confidence\":0.98,\"action\":\"allow\"}"}]}
-{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "You are so stupid, I can't believe anyone listens to you."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"insult\",\"severity\":\"medium\",\"confidence\":0.95,\"action\":\"warn\"}"}]}
-{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "I will find you and make you regret this."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"threat\",\"severity\":\"critical\",\"confidence\":0.98,\"action\":\"block\"}"}]}
-{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "Nobody likes you, just disappear already."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"bullying\",\"severity\":\"high\",\"confidence\":0.96,\"action\":\"block\"}"}]}
-```
-
-The full dataset and OpenPipe configuration screenshots are available in the project's Google Drive folder:
-
-📁 [View Dataset & Configuration on Google Drive](https://drive.google.com/drive/folders/13uv8yHjBynR3WEr9EPH94S_PU8A-kgoJ?usp=sharing)
 
 ---
 
