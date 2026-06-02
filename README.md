@@ -150,55 +150,6 @@ The toxicity detection feature is powered by a custom model fine-tuned on [OpenP
 | `batch_size` | auto |
 | `lora_rank` | 8 |
 
-### OpenPipe Client — `src/utils/openpipe.connect.js`
-
-The OpenPipe client wraps the standard OpenAI SDK with the `openpipe` extension, routing requests to the fine-tuned serverless endpoint.
-
-```javascript
-import OpenAI from "openpipe/openai";
-
-const client = new OpenAI({
-  openpipe: {
-    apiKey: process.env.OPENPIPE_API_KEY,
-  },
-});
-
-export default client;
-```
-
-### Controller
-
-```javascript
-export const sendChat = async (req, res) => {
-  const { chatMessage } = req.body;
-  const completion = await client.chat.completions.create({
-    model: "openpipe:Sarahaa-App",
-    messages: [
-      {
-        role: "system",
-        content:
-          'You are Sarahah\'s Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  "is_toxic": boolean,\n  "category": string,\n  "severity": string,\n  "confidence": float,\n  "action": string\n}\n\nAlways choose exactly one category.\nReturn only JSON.',
-      },
-      {
-        role: "user",
-        content: chatMessage,
-      },
-    ],
-    temperature: 0,
-  });
-
-  const result = completion?.choices[0]?.message.content;
-
-  return successResponse({
-    res,
-    message: "Chat Response",
-    data: JSON.parse(result),
-  });
-};
-```
-
-> `temperature: 0` is used to ensure fully deterministic, reproducible classifications across every request.
-
 ### Training Dataset
 
 The model was fine-tuned on **47 labeled JSONL examples** covering all 10 harm categories, with balanced representation across severity levels. Each example follows the standard OpenAI chat format — a fixed system prompt, a user message, and the expected JSON classification as the assistant turn.
@@ -310,10 +261,6 @@ SARAHAA-APP/
 │   │   │   ├── message.controller.js
 │   │   │   ├── message.routes.js
 │   │   │   └── message.validation.js
-│   │   └── chat/
-│   │       ├── chat.controller.js
-│   │       ├── chat.routes.js
-│   │       └── chat.validation.js
 │   ├── DB/
 │   │   ├── models/
 │   │   │   ├── user.model.js
@@ -326,6 +273,7 @@ SARAHAA-APP/
 │   │   └── validation.middleware.js
 │   └── utils/
 │       ├── response.js
+│       ├── openpipe.connect.js
 │       ├── multer/
 │       │   ├── local.multer.js
 │       │   ├── cloud.multer.js
@@ -336,8 +284,7 @@ SARAHAA-APP/
 │       │       └── Email.template.js
 │       ├── events/
 │       │   └── email.event.js
-│       ├── openpipe/
-│       │   └── openpipe.connect.js
+│       │ 
 │       └── security/
 │           ├── hash.security.js
 │           ├── encrypt.security.js
@@ -425,8 +372,6 @@ Stores anonymous (or identified) messages sent to a user's public profile.
 
 Copy `.env.example` to `.env` and fill in all values before running the application.
 
-```bash
-cp .env.example .env
 ```
 
 ```properties
@@ -1123,7 +1068,9 @@ Receiver only (must be the user who froze it — `deletedBy` must match). Unsets
 | `404` | Message not found or already restored |
 
 </details>
+
 ---
+
 ### Chat
 
 > Powered by the fine-tuned `openpipe:Sarahaa-App` model. Analyzes a message string and returns a structured toxicity classification.
