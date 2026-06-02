@@ -20,7 +20,7 @@
 
 | Protocol | URL |
 |---|---|
-| HTTP | [http://ec2-32-192-124-255.compute-1.amazonaws.com](http://ec2-32-192-124-255.compute-1.amazonaws.com) |
+| HTTP | [http://ec2-44-194-144-14.compute-1.amazonaws.com](http://ec2-44-194-144-14.compute-1.amazonaws.com) |
 | HTTPS | [https://bagged-feeble-handcraft.ngrok-free.dev](https://bagged-feeble-handcraft.ngrok-free.dev) |
 
 </div>
@@ -35,10 +35,13 @@
 - [Project Structure](#project-structure)
 - [Database Models](#database-models)
 - [Security Design](#security-design)
+- [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
   - [Auth — `/auth`](#auth----auth)
   - [User — `/user`](#user----user)
   - [Message — `/message`](#message----message)
+  - [Chat — `/chat`](#chat----chat)
+- [Fine-Tuned Model — OpenPipe](#fine-tuned-model--openpipe)
 - [Deployment](#deployment)
 - [Author](#author)
 
@@ -115,6 +118,55 @@ Sarahaa is an anonymous messaging platform where users register, get a personal 
 - Freeze message (soft-delete) — receiver only; sets `deletedAt` and `deletedBy`
 - Restore a frozen message — receiver only; unsets soft-delete fields and sets restore audit fields
 - Hard delete a message — receiver only; message must be frozen first
+- `message.controller.js` relies on **express-async-handler v5** for automatic async error propagation — no manual `asyncHandler()` wrapper needed; errors are thrown directly with `throw new Error()` instead of `next(new Error())`
+- Each controller method in `message.controller.js` is documented with JSDoc comments specifying the method's purpose, input parameters, expected output, and usage examples
+
+---
+
+### 🤖 Toxicity Detection — Fine-Tuned Model — OpenPipe AI
+
+The toxicity detection feature is powered by a custom model fine-tuned on [OpenPipe](https://openpipe.ai/) — a platform for training, deploying, and serving fine-tuned LLMs.
+
+### Model Details
+
+| Property | Value |
+|---|---|
+| Platform | OpenPipe |
+| Deployment Type | Serverless |
+| Base Model | Llama 3.1 8B Instruct |
+| Fine-Tuned Model ID | `openpipe:Sarahaa-App` |
+| Status | Deployed |
+| Created At | June 2, 2026 · 5:50 PM |
+| Training Set Size | 47 examples |
+| Test Set Size | 5 examples |
+
+### Training Configuration
+
+| Parameter | Value |
+|---|---|
+| LoRA Size | 101.2 MB |
+| `learning_rate_multiplier` | 1 |
+| `num_epochs` | 10 |
+| `batch_size` | auto |
+| `lora_rank` | 8 |
+
+### Training Dataset
+
+The model was fine-tuned on **47 labeled JSONL examples** covering all 10 harm categories, with balanced representation across severity levels. Each example follows the standard OpenAI chat format — a fixed system prompt, a user message, and the expected JSON classification as the assistant turn.
+
+**Dataset preview — `dataset.jsonl`**
+
+```jsonl
+{"messages": [{"role": "system", "content": "You are Sarahah's Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  \"is_toxic\": boolean,\n  \"category\": string,\n  \"severity\": string,\n  \"confidence\": float,\n  \"action\": string\n}\n\nAlways choose exactly one category.\nReturn only JSON."}, {"role": "user", "content": "You're amazing and always help everyone."}, {"role": "assistant", "content": "{\"is_toxic\":false,\"category\":\"safe\",\"severity\":\"none\",\"confidence\":0.99,\"action\":\"allow\"}"}]}
+{"messages": [{"role": "system", "content": "You are Sarahah's Toxicity Detection AI.\n\nYour task is to analyze anonymous messages and classify harmful content.\n\nReturn ONLY valid JSON.\n\nCategories:\n- safe\n- insult\n- harassment\n- bullying\n- threat\n- hate_speech\n- sexual_harassment\n- profanity\n- spam\n- self_harm\n\nSeverity:\n- none\n- low\n- medium\n- high\n- critical\n\nActions:\n- allow\n- warn\n- review\n- block\n\nOutput schema:\n{\n  \"is_toxic\": boolean,\n  \"category\": string,\n  \"severity\": string,\n  \"confidence\": float,\n  \"action\": string\n}\n\nAlways choose exactly one category.\nReturn only JSON."}, {"role": "user", "content": "I really appreciate your kindness."}, {"role": "assistant", "content": "{\"is_toxic\":false,\"category\":\"safe\",\"severity\":\"none\",\"confidence\":0.98,\"action\":\"allow\"}"}]}
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "You are so stupid, I can't believe anyone listens to you."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"insult\",\"severity\":\"medium\",\"confidence\":0.95,\"action\":\"warn\"}"}]}
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "I will find you and make you regret this."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"threat\",\"severity\":\"critical\",\"confidence\":0.98,\"action\":\"block\"}"}]}
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "Nobody likes you, just disappear already."}, {"role": "assistant", "content": "{\"is_toxic\":true,\"category\":\"bullying\",\"severity\":\"high\",\"confidence\":0.96,\"action\":\"block\"}"}]}
+```
+
+The full dataset and OpenPipe configuration screenshots are available in the project's Google Drive folder:
+
+📁 [View Dataset & Configuration on Google Drive](https://drive.google.com/drive/folders/13uv8yHjBynR3WEr9EPH94S_PU8A-kgoJ?usp=sharing)
 
 ---
 
@@ -158,15 +210,11 @@ The application is deployed on an **AWS EC2** instance with the following produc
 - **PM2 Cluster Mode** — The app runs under PM2 in cluster mode, utilizing all available CPU cores, with automatic restarts on crash and persistence across server reboots
 - **ngrok** — Provides a public HTTPS tunnel to the server for the secure URL
 
-**Configuration Screenshots**
-
-> AWS EC2 instance, and server setup — [view all screenshots](https://drive.google.com/drive/folders/1i1yinEb5YVaMaLin9BbOB00DDF0R9pR_?usp=sharing)
-
 **Live URLs**
 
 | Protocol | URL |
 |---|---|
-| HTTP (EC2 + Elastic IP) | [http://ec2-32-192-124-255.compute-1.amazonaws.com](http://ec2-32-192-124-255.compute-1.amazonaws.com) |
+| HTTP (EC2 + Elastic IP) | [http://ec2-44-194-144-14.compute-1.amazonaws.com](http://ec2-44-194-144-14.compute-1.amazonaws.com) |
 | HTTPS (ngrok tunnel) | [https://bagged-feeble-handcraft.ngrok-free.dev](https://bagged-feeble-handcraft.ngrok-free.dev) |
 
 ---
@@ -184,6 +232,7 @@ The application is deployed on an **AWS EC2** instance with the following produc
 | Email | Nodemailer + Node EventEmitter |
 | File Upload | Multer + Cloudinary |
 | OTP | nanoid (`customAlphabet`) |
+| AI / Toxicity Detection | OpenPipe (`openpipe:Sarahaa-App`) · Fine-tuned Llama 3.1 8B Instruct |
 | Config | dotenv |
 | Logging | Chalk |
 | Process Manager | PM2 (cluster mode) |
@@ -208,10 +257,10 @@ SARAHAA-APP/
 │   │   │   ├── user.routes.js
 │   │   │   ├── user.validation.js
 │   │   │   └── user.authorization.js
-│   │   └── message/
-│   │       ├── message.controller.js
-│   │       ├── message.routes.js
-│   │       └── message.validation.js
+│   │   ├── message/
+│   │   │   ├── message.controller.js
+│   │   │   ├── message.routes.js
+│   │   │   └── message.validation.js
 │   ├── DB/
 │   │   ├── models/
 │   │   │   ├── user.model.js
@@ -224,6 +273,7 @@ SARAHAA-APP/
 │   │   └── validation.middleware.js
 │   └── utils/
 │       ├── response.js
+│       ├── openpipe.connect.js
 │       ├── multer/
 │       │   ├── local.multer.js
 │       │   ├── cloud.multer.js
@@ -234,6 +284,7 @@ SARAHAA-APP/
 │       │       └── Email.template.js
 │       ├── events/
 │       │   └── email.event.js
+│       │ 
 │       └── security/
 │           ├── hash.security.js
 │           ├── encrypt.security.js
@@ -241,6 +292,8 @@ SARAHAA-APP/
 │           └── token.security.js
 │   ├── app.controller.js
 │   └── index.js
+├── .env
+├── .env.example
 ├── .gitignore
 ├── package.json
 └── README.md
@@ -315,9 +368,76 @@ Stores anonymous (or identified) messages sent to a user's public profile.
 
 ---
 
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in all values before running the application.
+
+```
+
+```properties
+# ── App ───────────────────────────────────────────────
+MOOD=""
+MONGO_URI=""
+AES_SECRET_KEY=""
+PORT=
+APPLICATION_NAME=""
+SALT_ROUND=
+
+# ── User Tokens ───────────────────────────────────────
+JWT_ACCESS_USER_KEY=""
+JWT_REFRESH_USER_KEY=""
+
+# ── Admin Tokens ──────────────────────────────────────
+JWT_ACCESS_ADMIN_KEY=""
+JWT_REFRESH_ADMIN_KEY=""
+
+# ── Token Expiry ──────────────────────────────────────
+JWT_ACCESS_EXPIRES_IN=
+JWT_REFRESH_EXPIRES_IN=
+
+# ── Google OAuth ──────────────────────────────────────
+WEB_CLIENT_IDS=""
+
+# ── Nodemailer ────────────────────────────────────────
+APP_EMAIL=""
+APP_PASSWORD=""
+
+# ── Cloudinary ────────────────────────────────────────
+CLOUDINARY_CLOUD_NAME=""
+CLOUDINARY_API_KEY=""
+CLOUDINARY_API_SECRET=""
+
+# ── OpenPipe ──────────────────────────────────────────
+OPENPIPE_API_KEY=""
+```
+
+| Variable | Description |
+|---|---|
+| `MOOD` | Runtime environment — `DEV` or `PROD` |
+| `MONGO_URI` | MongoDB Atlas connection string |
+| `AES_SECRET_KEY` | Secret key used for AES phone number encryption |
+| `PORT` | Port the Express server listens on |
+| `APPLICATION_NAME` | Display name used in logs and email templates |
+| `SALT_ROUND` | bcrypt salt rounds for password hashing |
+| `JWT_ACCESS_USER_KEY` | Signing secret for user access tokens |
+| `JWT_REFRESH_USER_KEY` | Signing secret for user refresh tokens |
+| `JWT_ACCESS_ADMIN_KEY` | Signing secret for admin access tokens |
+| `JWT_REFRESH_ADMIN_KEY` | Signing secret for admin refresh tokens |
+| `JWT_ACCESS_EXPIRES_IN` | Access token expiry in seconds (e.g. `1800` = 30 min) |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry in seconds (e.g. `31536000` = 1 year) |
+| `WEB_CLIENT_IDS` | Google OAuth Web Client ID from Google Cloud Console |
+| `APP_EMAIL` | Gmail address used by Nodemailer to send emails |
+| `APP_PASSWORD` | Gmail App Password (not the account password) |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| `OPENPIPE_API_KEY` | OpenPipe API key for the fine-tuned toxicity detection model |
+
+---
+
 ## API Reference
 
-**Base URL (HTTP):** `http://ec2-32-192-124-255.compute-1.amazonaws.com`
+**Base URL (HTTP):** `http://ec2-44-194-144-14.compute-1.amazonaws.com`
 
 **Base URL (HTTPS):** `https://bagged-feeble-handcraft.ngrok-free.dev`
 
@@ -946,6 +1066,65 @@ Receiver only (must be the user who froze it — `deletedBy` must match). Unsets
 | `200` | Message restored |
 | `401` | Invalid or revoked token |
 | `404` | Message not found or already restored |
+
+</details>
+
+---
+
+### Chat
+
+> Powered by the fine-tuned `openpipe:Sarahaa-App` model. Analyzes a message string and returns a structured toxicity classification.
+
+<details>
+<summary><code>POST</code> &nbsp; <code>/message/chat</code> &nbsp;—&nbsp; Analyze message toxicity</summary>
+
+<br>
+
+No authentication required. Submit any text string and receive a toxicity classification from the fine-tuned model.
+
+**Body**
+```json
+{
+  "chatMessage": "You are not a good person"
+}
+```
+
+**Validation**
+
+| Field | Rules |
+|---|---|
+| `chatMessage` | String · 2–20,000 chars · Required · non-empty string |
+
+**Response — `200`**
+```json
+{
+  "message": "Chat Response",
+  "data": {
+    "is_toxic": true,
+    "category": "insult",
+    "severity": "low",
+    "confidence": 0.87,
+    "action": "warn"
+  }
+}
+```
+
+**Response Fields**
+
+| Field | Type | Description |
+|---|---|---|
+| `is_toxic` | Boolean | `true` if the message contains harmful content |
+| `category` | String | One of: `safe`, `insult`, `harassment`, `bullying`, `threat`, `hate_speech`, `sexual_harassment`, `profanity`, `spam`, `self_harm` |
+| `severity` | String | One of: `none`, `low`, `medium`, `high`, `critical` |
+| `confidence` | Float | Model confidence score between `0.0` and `1.0` |
+| `action` | String | One of: `allow`, `warn`, `review`, `block` |
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `200` | Classification returned |
+| `400` | Missing or invalid `chatMessage` field |
 
 </details>
 
