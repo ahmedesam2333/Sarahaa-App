@@ -11,6 +11,12 @@ const router = Router({
 });
 
 router.post(
+  "/chat",
+  validation({ schema: validators.sendChat }),
+  messageController.sendChat
+);
+
+router.post(
   "/:receiverId",
   cloudFileUpload({ validation: fileValidation.image }).array("attachments", 2),
   validation({ schema: validators.sendMessage }),

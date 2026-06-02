@@ -30,6 +30,15 @@ export const sendMessage = {
     .required(),
 };
 
+export const sendChat = {
+  body: joi
+    .object()
+    .keys({
+      chatMessage: joi.string().min(2).max(20000).required(),
+    })
+    .required(),
+};
+
 export const getMessage = {
   params: joi
     .object()
