@@ -150,7 +150,7 @@ The toxicity detection feature is powered by a custom model fine-tuned on [OpenP
 | `batch_size` | auto |
 | `lora_rank` | 8 |
 
-### OpenPipe Client — `src/utils/openpipe/openpipe.connect.js`
+### OpenPipe Client — `src/utils/openpipe.connect.js`
 
 The OpenPipe client wraps the standard OpenAI SDK with the `openpipe` extension, routing requests to the fine-tuned serverless endpoint.
 
@@ -166,7 +166,7 @@ const client = new OpenAI({
 export default client;
 ```
 
-### Controller — `src/modules/chat/chat.controller.js`
+### Controller
 
 ```javascript
 export const sendChat = async (req, res) => {
@@ -1123,15 +1123,13 @@ Receiver only (must be the user who froze it — `deletedBy` must match). Unsets
 | `404` | Message not found or already restored |
 
 </details>
-
 ---
-
-### Chat — `/chat`
+### Chat
 
 > Powered by the fine-tuned `openpipe:Sarahaa-App` model. Analyzes a message string and returns a structured toxicity classification.
 
 <details>
-<summary><code>POST</code> &nbsp; <code>/chat</code> &nbsp;—&nbsp; Analyze message toxicity</summary>
+<summary><code>POST</code> &nbsp; <code>/message/chat</code> &nbsp;—&nbsp; Analyze message toxicity</summary>
 
 <br>
 
@@ -1148,7 +1146,7 @@ No authentication required. Submit any text string and receive a toxicity classi
 
 | Field | Rules |
 |---|---|
-| `chatMessage` | Required · non-empty string |
+| `chatMessage` | String · 2–20,000 chars · Required · non-empty string |
 
 **Response — `200`**
 ```json
