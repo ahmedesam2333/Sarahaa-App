@@ -37,13 +37,7 @@
 - [Security Design](#security-design)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
-  - [Auth — `/auth`](#auth----auth)
-  - [User — `/user`](#user----user)
-  - [Message — `/message`](#message----message)
-  - [Chat — `/chat`](#chat----chat)
-- [Fine-Tuned Model — OpenPipe](#fine-tuned-model--openpipe)
-- [Deployment](#deployment)
-- [Author](#author)
+- [Author](#%E2%80%8D-author)
 
 ---
 
